@@ -180,3 +180,68 @@ async fn only_an_image_can_be_recorded() {
     assert_eq!(response.status(), 422);
 }
 
+#[actix_web::test]
+async fn attaching_a_cover_returns_a_delivery_url_carrying_the_transformation() {
+    let state = state().await;
+    let app = service!(state);
+    let token = sign_in!(app, "Amara Chukwu");
+    let media_id = record_media!(app, token);
+    let event_id = publish_event!(app, token);
+
+    let response = test::call_service(
+        &app,
+        test::TestRequest::put()
+            .uri(&format!("/v1/events/{event_id}/cover/{media_id}"))
+            .insert_header(("authorization", format!("Bearer {token}")))
+            .to_request(),
+    )
+    .await;
+
+    assert_eq!(response.status(), 200);
+    let url = body_json(response).await["cover_url"]
+        .as_str()
+        .expect("attaching a cover must return where to fetch it")
+        .to_owned();
+
+    assert!(url.starts_with("https://res.cloudinary.com/"));
+    assert!(
+        url.contains("c_fill,w_1200,h_800,q_auto,f_auto"),
+        "covers are served through a transformation, not at original size"
+    );
+}
+
+#[actix_web::test]
+async fn a_stranger_can_neither_cover_someone_elses_event_nor_borrow_their_upload() {
+    let state = state().await;
+    let app = service!(state);
+    let host = sign_in!(app, "Amara Chukwu");
+    let stranger = sign_in!(app, "Passing Stranger");
+
+    let host_media = record_media!(app, host);
+    let event_id = publish_event!(app, host);
+
+    let hijacked = test::call_service(
+        &app,
+        test::TestRequest::put()
+            .uri(&format!("/v1/events/{event_id}/cover/{host_media}"))
+            .insert_header(("authorization", format!("Bearer {stranger}")))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(hijacked.status(), 403, "only the host may set a cover");
+
+    let stranger_event = publish_event!(app, stranger);
+    let borrowed = test::call_service(
+        &app,
+        test::TestRequest::put()
+            .uri(&format!("/v1/events/{stranger_event}/cover/{host_media}"))
+            .insert_header(("authorization", format!("Bearer {stranger}")))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(
+        borrowed.status(),
+        404,
+        "a host may only attach uploads they own"
+    );
+}

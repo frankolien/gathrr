@@ -11,7 +11,9 @@ public enum OnboardingMetrics {
     public static let ctaGap: CGFloat = 14
     public static let ctaTopInset: CGFloat = 26
     public static let veilBlur: CGFloat = 34
-    public static let providerButtonHeight: CGFloat = 56
+    public static let providerButtonHeight: CGFloat = 50
+    public static let providerMarkSize: CGFloat = 18
+    public static let providerRowGap: CGFloat = 12
     public static let driftPeriod: Double = 44
     public static let bobRate: Double = 0.55
     public static let bobHeight: CGFloat = 7

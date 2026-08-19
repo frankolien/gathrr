@@ -1,22 +1,28 @@
 import SwiftUI
 
-struct GlassCapsule: ViewModifier {
+struct GlassSurface: ViewModifier {
+    let radius: CGFloat
+
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
-            content.glassEffect(.regular, in: .capsule)
+            content.glassEffect(.regular, in: .rect(cornerRadius: radius))
         } else {
             content
-                .background(.ultraThinMaterial, in: Capsule())
+                .background(
+                    .ultraThinMaterial,
+                    in: RoundedRectangle(cornerRadius: radius, style: .continuous)
+                )
                 .overlay {
-                    Capsule().strokeBorder(Palette.glassEdge.opacity(0.6), lineWidth: 0.5)
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
+                        .strokeBorder(Palette.glassEdge.opacity(0.6), lineWidth: 0.5)
                 }
         }
     }
 }
 
 extension View {
-    public func glassCapsule() -> some View {
-        modifier(GlassCapsule())
+    public func glassPanel(radius: CGFloat = Radius.tile) -> some View {
+        modifier(GlassSurface(radius: radius))
     }
 }
 
@@ -25,6 +31,7 @@ public struct ProviderButton: View {
         case apple
         case google
         case symbol(String)
+        case plain
     }
 
     public enum Tone {
@@ -32,32 +39,41 @@ public struct ProviderButton: View {
         case glass
     }
 
+    public enum Presentation {
+        case labelled
+        case iconOnly
+    }
+
     private let title: String
     private let emblem: Emblem
     private let tone: Tone
+    private let presentation: Presentation
     private let action: () -> Void
 
     public init(
         _ title: String,
         emblem: Emblem,
         tone: Tone = .glass,
+        presentation: Presentation = .labelled,
         action: @escaping () -> Void
     ) {
         self.title = title
         self.emblem = emblem
         self.tone = tone
+        self.presentation = presentation
         self.action = action
     }
 
     public var body: some View {
         Button(action: action) {
-            HStack(spacing: Spacing.stackGap) {
+            HStack(spacing: Spacing.unit * 2) {
                 mark
-                Text(title)
-                    .font(Typography.titleS)
+                if presentation == .labelled {
+                    Text(title).font(Typography.headline)
+                }
             }
             .foregroundStyle(tone == .solid ? Palette.onProvider : Palette.textPrimary)
-            .padding(.horizontal, Spacing.gutter)
+            .padding(.horizontal, Spacing.cardPadding)
             .frame(maxWidth: .infinity, minHeight: OnboardingMetrics.providerButtonHeight)
             .modifier(ProviderSurface(tone: tone))
         }
@@ -70,19 +86,21 @@ public struct ProviderButton: View {
         switch emblem {
         case .apple:
             Image(systemName: "apple.logo")
-                .font(.system(size: 19, weight: .medium))
-                .frame(width: 24)
+                .font(.system(size: OnboardingMetrics.providerMarkSize, weight: .medium))
         case .google:
             Image("GoogleMark", bundle: .module)
                 .renderingMode(.original)
                 .resizable()
                 .scaledToFit()
-                .frame(width: 20, height: 20)
-                .frame(width: 24)
+                .frame(
+                    width: OnboardingMetrics.providerMarkSize,
+                    height: OnboardingMetrics.providerMarkSize
+                )
         case .symbol(let name):
             Image(systemName: name)
-                .font(.system(size: 17, weight: .medium))
-                .frame(width: 24)
+                .font(.system(size: OnboardingMetrics.providerMarkSize, weight: .medium))
+        case .plain:
+            EmptyView()
         }
     }
 }
@@ -93,9 +111,28 @@ private struct ProviderSurface: ViewModifier {
     func body(content: Content) -> some View {
         switch tone {
         case .solid:
-            content.background(Palette.providerSurface, in: Capsule())
+            content.background(
+                Palette.providerSurface,
+                in: RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
+            )
         case .glass:
-            content.glassCapsule()
+            content.glassPanel()
         }
+    }
+}
+
+public struct OrDivider: View {
+    private let label: String
+
+    public init(_ label: String = "or") {
+        self.label = label
+    }
+
+    public var body: some View {
+        Text(label)
+            .font(Typography.footnote)
+            .foregroundStyle(Palette.textTertiary)
+            .frame(maxWidth: .infinity)
+            .accessibilityHidden(true)
     }
 }

@@ -1038,3 +1038,45 @@ Events and RSVPs are cached indefinitely and pruned 30 days after `ends_at`. Cha
 
 ---
 
+## 11. Notification Catalog
+
+### 11.1 Types
+
+| Type | Trigger | Recipients | Deep link | Collapse key |
+|---|---|---|---|---|
+| `invite_received` | Host adds a known user | Invitee | Event detail | `evt:{id}:invite` |
+| `rsvp_received` | Guest RSVPs | Host | Guest management | `evt:{id}:rsvp` |
+| `reminder_week` | `starts_at − 7d` | Invited + Maybe | Event detail | `evt:{id}:rem7` |
+| `reminder_2h` | `starts_at − 2h` | Going | Event detail | `evt:{id}:rem2` |
+| `event_updated` | Time or location change | All non-declined | Event detail | `evt:{id}:upd` |
+| `event_cancelled` | Cancel | All non-declined | Event detail | `evt:{id}:cancel` |
+| `waitlist_promoted` | Capacity freed | Promoted guest | RSVP sheet | `evt:{id}:wl` |
+| `chat_message` | New message | Event members, unmuted | Chat | `evt:{id}:chat` |
+| `sync_hint` | Any material change | Members | none (silent) | `evt:{id}:sync` |
+
+Reminder cadence deliberately mirrors Partiful's published behavior (1 week to Invited and Maybe, 2 hours to Going).
+
+### 11.2 Payload
+
+```json
+{
+  "aps": {
+    "alert": { "title": "Amara's 26th Birthday", "body": "Starts in 2 hours" },
+    "thread-id": "evt:9f2c...",
+    "interruption-level": "active",
+    "relevance-score": 0.8
+  },
+  "gathr": { "type": "reminder_2h", "event_id": "9f2c...", "url": "gathr://events/9f2c..." }
+}
+```
+
+`thread-id` groups every notification for one event into a single stack in Notification Center. `collapse-id` (an APNs header, not a payload field) prevents ten RSVPs from producing ten banners for the host. Chat notifications use `interruption-level: passive` outside working hours.
+
+### 11.3 Delivery Rules
+
+Never notify the actor about their own action. Suppress `chat_message` while that chat is foregrounded. Respect per-event mute (migration 0005). Quiet hours 22:00–07:00 WAT hold non-urgent types until 07:00; `event_cancelled` and `waitlist_promoted` are always immediate. On an APNs `Unregistered` or `BadDeviceToken` response, delete the device row immediately (2.5).
+
+Guests who RSVP'd from the web have no device token. Their `event_cancelled` and `event_updated` notifications fall back to SMS when a phone is on file, which is the only channel that reaches them at all — budget for this in the SMS cost model (14.2).
+
+---
+

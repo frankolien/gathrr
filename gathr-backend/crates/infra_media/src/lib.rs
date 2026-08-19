@@ -77,3 +77,61 @@ impl Cloudinary {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cloudinary() -> Cloudinary {
+        Cloudinary::new("demo".to_owned(), "key".to_owned(), "secret".to_owned()).unwrap()
+    }
+
+    #[test]
+    fn a_missing_value_leaves_the_uploader_unconfigured_rather_than_half_built() {
+        assert!(Cloudinary::new(String::new(), "key".to_owned(), "secret".to_owned()).is_none());
+        assert!(Cloudinary::new("demo".to_owned(), "  ".to_owned(), "secret".to_owned()).is_none());
+        assert!(cloudinary().ticket(COVER_FOLDER, 1).is_ok());
+    }
+
+    #[test]
+    fn the_signature_is_sha1_of_the_sorted_params_followed_by_the_secret() {
+        let ticket = cloudinary().ticket(COVER_FOLDER, 1_700_000_000).unwrap();
+
+        let mut expected = Sha1::new();
+        expected.update(b"folder=gathr/covers&timestamp=1700000000");
+        expected.update(b"secret");
+        let expected: String = expected
+            .finalize()
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect();
+
+        assert_eq!(ticket.signature, expected);
+        assert_eq!(ticket.signature.len(), 40);
+    }
+
+    #[test]
+    fn a_different_timestamp_produces_a_different_signature() {
+        let first = cloudinary().ticket(COVER_FOLDER, 1_700_000_000).unwrap();
+        let second = cloudinary().ticket(COVER_FOLDER, 1_700_000_001).unwrap();
+        assert_ne!(first.signature, second.signature);
+    }
+
+    #[test]
+    fn uploads_are_confined_to_folders_this_app_owns() {
+        assert!(matches!(
+            cloudinary().ticket("../../etc", 1),
+            Err(MediaError::UnknownFolder(_))
+        ));
+        assert!(cloudinary().ticket(AVATAR_FOLDER, 1).is_ok());
+    }
+
+    #[test]
+    fn the_secret_never_appears_in_the_ticket_handed_to_a_client() {
+        let ticket = cloudinary().ticket(COVER_FOLDER, 1_700_000_000).unwrap();
+        let rendered = format!("{ticket:?}");
+        assert!(
+            !rendered.contains("secret"),
+            "a ticket is sent to the phone and must never carry the api secret"
+        );
+    }
+}

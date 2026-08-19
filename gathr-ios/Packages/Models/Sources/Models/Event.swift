@@ -147,3 +147,88 @@ public struct GuestList: Codable, Sendable, Hashable {
     }
 }
 
+public struct RSVP: Codable, Sendable, Hashable {
+    public let eventId: UUID
+    public let status: RSVPStatus
+    public let plusOnes: Int
+    public let enteredWaitlist: Bool
+    public let seatsRemaining: Int?
+
+    public init(
+        eventId: UUID,
+        status: RSVPStatus,
+        plusOnes: Int,
+        enteredWaitlist: Bool,
+        seatsRemaining: Int?
+    ) {
+        self.eventId = eventId
+        self.status = status
+        self.plusOnes = plusOnes
+        self.enteredWaitlist = enteredWaitlist
+        self.seatsRemaining = seatsRemaining
+    }
+}
+
+public struct Invite: Codable, Sendable, Identifiable, Hashable {
+    public let id: UUID
+    public let eventId: UUID
+    public let code: String
+    public let url: URL
+    public let maxUses: Int?
+    public let uses: Int
+    public let expiresAt: Date?
+}
+
+public struct PublicInvite: Codable, Sendable, Hashable {
+    public let eventId: UUID
+    public let title: String
+    public let category: EventCategory
+    public let locationName: String?
+    public let startsAt: Date
+    public let timezone: String
+    public let hostFirstName: String
+    public let goingGuests: Int
+
+    public init(
+        eventId: UUID,
+        title: String,
+        category: EventCategory,
+        locationName: String?,
+        startsAt: Date,
+        timezone: String,
+        hostFirstName: String,
+        goingGuests: Int
+    ) {
+        self.eventId = eventId
+        self.title = title
+        self.category = category
+        self.locationName = locationName
+        self.startsAt = startsAt
+        self.timezone = timezone
+        self.hostFirstName = hostFirstName
+        self.goingGuests = goingGuests
+    }
+}
+
+public struct Account: Codable, Sendable, Identifiable, Hashable {
+    public let id: UUID
+    public let displayName: String
+    public let isGuest: Bool
+    public let bio: String?
+    public let avatarURL: URL?
+
+    public init(
+        id: UUID,
+        displayName: String,
+        isGuest: Bool,
+        bio: String? = nil,
+        avatarURL: URL? = nil
+    ) {
+        self.id = id
+        self.displayName = displayName
+        self.isGuest = isGuest
+        self.bio = bio
+        self.avatarURL = avatarURL
+    }
+}
+

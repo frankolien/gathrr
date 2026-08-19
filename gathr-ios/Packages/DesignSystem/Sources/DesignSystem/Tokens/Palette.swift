@@ -30,13 +30,14 @@ public enum Palette {
     public static let onboardingCanvas = adaptive(light: 0xEF_F2_F7, dark: 0x0B_0B_0C)
     public static let glassEdge = adaptive(light: 0xFF_FF_FF, dark: 0x3A_3A_3C)
     public static let onHeader = Color.white
-    public static let onHeaderMuted = Color.white.opacity(0.72)
+    public static let onHeaderMuted = Color.white.opacity(0.85)
     public static let headerGlass = Color.white.opacity(0.18)
 
     public static let headerGradient = LinearGradient(
-        colors: [
-            adaptive(light: 0x2F_8BFF, dark: 0x0A_5A_C4),
-            adaptive(light: 0x0A_74_F0, dark: 0x06_3E_8C),
+        stops: [
+            .init(color: adaptive(light: 0x00_89_FF, dark: 0x0A_4E_9E), location: 0.00),
+            .init(color: adaptive(light: 0x4E_BC_FF, dark: 0x10_36_6B), location: 0.44),
+            .init(color: adaptive(light: 0xDD_F3_FF, dark: 0x0B_0B_0C), location: 1.00),
         ],
         startPoint: .top,
         endPoint: .bottom

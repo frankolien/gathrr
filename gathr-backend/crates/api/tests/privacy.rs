@@ -48,3 +48,79 @@ struct Person {
     id: Uuid,
 }
 
+async fn sign_in(app: &impl Harness, name: &str) -> Person {
+    let response = test::call_service(
+        app,
+        test::TestRequest::post()
+            .uri("/v1/auth/dev")
+            .set_json(json!({ "display_name": name }))
+            .to_request(),
+    )
+    .await;
+    let body = body_json(response).await;
+    Person {
+        token: body["access_token"].as_str().unwrap().to_owned(),
+        id: Uuid::parse_str(body["user_id"].as_str().unwrap()).unwrap(),
+    }
+}
+
+async fn publish_event(app: &impl Harness, token: &str, title: &str) -> Uuid {
+    let response = test::call_service(
+        app,
+        test::TestRequest::post()
+            .uri("/v1/events")
+            .insert_header(("authorization", format!("Bearer {token}")))
+            .insert_header(("idempotency-key", Uuid::new_v4().to_string()))
+            .set_json(json!({
+                "title": title,
+                "category": "party",
+                "starts_at": "2027-09-08T18:00:00Z",
+                "publish_now": true
+            }))
+            .to_request(),
+    )
+    .await;
+    Uuid::parse_str(body_json(response).await["id"].as_str().unwrap()).unwrap()
+}
+
+async fn rsvp(app: &impl Harness, token: &str, event: Uuid) {
+    test::call_service(
+        app,
+        test::TestRequest::post()
+            .uri(&format!("/v1/events/{event}/rsvp"))
+            .insert_header(("authorization", format!("Bearer {token}")))
+            .insert_header(("idempotency-key", Uuid::new_v4().to_string()))
+            .set_json(json!({ "status": "going", "plus_ones": 0, "accept_waitlist": false }))
+            .to_request(),
+    )
+    .await;
+}
+
+async fn post_message(app: &impl Harness, token: &str, event: Uuid, body: &str) -> Uuid {
+    let response = test::call_service(
+        app,
+        test::TestRequest::post()
+            .uri(&format!("/v1/events/{event}/messages"))
+            .insert_header(("authorization", format!("Bearer {token}")))
+            .insert_header(("idempotency-key", Uuid::new_v4().to_string()))
+            .set_json(json!({ "body": body }))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(response.status(), 201);
+    Uuid::parse_str(body_json(response).await["id"].as_str().unwrap()).unwrap()
+}
+
+async fn thread(app: &impl Harness, token: &str, event: Uuid) -> Value {
+    let response = test::call_service(
+        app,
+        test::TestRequest::get()
+            .uri(&format!("/v1/events/{event}/messages"))
+            .insert_header(("authorization", format!("Bearer {token}")))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(response.status(), 200);
+    body_json(response).await
+}
+

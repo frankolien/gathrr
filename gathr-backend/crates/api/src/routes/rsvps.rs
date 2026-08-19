@@ -65,3 +65,12 @@ pub async fn guests(
     }))
 }
 
+pub async fn promote(
+    state: web::Data<AppState>,
+    user: AuthUser,
+    path: web::Path<(Uuid, Uuid)>,
+) -> Result<HttpResponse, ApiError> {
+    let (event_id, guest_id) = path.into_inner();
+    let view = rsvps::promote(&state.db, event_id, user.0, guest_id).await?;
+    Ok(HttpResponse::Ok().json(RsvpResponse::from(view)))
+}

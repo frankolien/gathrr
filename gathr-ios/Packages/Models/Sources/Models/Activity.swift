@@ -44,3 +44,12 @@ public struct ActivityEntry: Codable, Sendable, Identifiable, Hashable {
     }
 }
 
+public struct ActivityFeed: Codable, Sendable, Hashable {
+    public let unread: Int
+    public let notifications: [ActivityEntry]
+
+    public init(unread: Int, notifications: [ActivityEntry]) {
+        self.unread = unread
+        self.notifications = notifications
+    }
+}

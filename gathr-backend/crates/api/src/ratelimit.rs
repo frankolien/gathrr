@@ -44,3 +44,49 @@ const BASELINE: Quota = Quota {
     window: Duration::from_secs(60),
 };
 
+#[derive(Default)]
+pub struct RateLimiter {
+    windows: Mutex<HashMap<String, (Instant, u32)>>,
+}
+
+impl RateLimiter {
+    pub fn admit(&self, key: &str, quota: Quota) -> Result<(), Duration> {
+        let now = Instant::now();
+        let mut windows = self.windows.lock().unwrap_or_else(|poisoned| {
+            self.windows.clear_poison();
+            poisoned.into_inner()
+        });
+
+        windows.retain(|_, (started, _)| now.duration_since(*started) < BASELINE.window * 2);
+
+        let entry = windows
+            .entry(format!("{}:{key}", quota.bucket))
+            .or_insert((now, 0));
+
+        if now.duration_since(entry.0) >= quota.window {
+            *entry = (now, 0);
+        }
+
+        if entry.1 >= quota.allowance {
+            return Err(quota.window - now.duration_since(entry.0));
+        }
+
+        entry.1 += 1;
+        Ok(())
+    }
+}
+
+pub fn quota_for(method: &Method, path: &str) -> Quota {
+    if path.starts_with("/v1/auth/otp/") {
+        VERIFICATION
+    } else if path.starts_with("/v1/auth/") {
+        AUTHENTICATION
+    } else if path.starts_with("/v1/invites/") || path.starts_with("/i/") {
+        INVITE_LOOKUP
+    } else if method != Method::GET {
+        WRITE
+    } else {
+        BASELINE
+    }
+}
+

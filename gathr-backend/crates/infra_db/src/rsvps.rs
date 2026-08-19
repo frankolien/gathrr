@@ -148,3 +148,14 @@ pub async fn list_guests(db: &Db, event_id: Uuid) -> Result<Vec<GuestRecord>, Db
         .collect()
 }
 
+pub async fn remove(db: &Db, event_id: Uuid, user_id: Uuid) -> Result<bool, DbError> {
+    sqlx::query!(
+        r#"DELETE FROM rsvps WHERE event_id = $1 AND user_id = $2"#,
+        event_id,
+        user_id
+    )
+    .execute(db)
+    .await
+    .map(|done| done.rows_affected() > 0)
+    .map_err(DbError::from_sqlx)
+}

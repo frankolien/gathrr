@@ -70,3 +70,16 @@ pub async fn cover_url(
     Ok(Some(cloudinary.delivery_url(&key, COVER_TRANSFORMATION)))
 }
 
+pub async fn avatar_url(
+    db: &Db,
+    cloudinary: Option<&Cloudinary>,
+    user_id: Uuid,
+) -> Result<Option<String>, AppError> {
+    let (Some(cloudinary), Some(key)) =
+        (cloudinary, media::bucket_key_for_user(db, user_id).await?)
+    else {
+        return Ok(None);
+    };
+
+    Ok(Some(cloudinary.delivery_url(&key, AVATAR_TRANSFORMATION)))
+}

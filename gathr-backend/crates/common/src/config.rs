@@ -83,3 +83,16 @@ fn list(key: &str) -> Vec<String> {
         .collect()
 }
 
+fn flag(key: &'static str) -> Result<bool, ConfigError> {
+    match env::var(key) {
+        Err(VarError::NotPresent) => Ok(false),
+        Ok(value) => value.parse().map_err(|_| ConfigError::Invalid {
+            key,
+            reason: format!("expected true or false, found {value}"),
+        }),
+        Err(error) => Err(ConfigError::Invalid {
+            key,
+            reason: error.to_string(),
+        }),
+    }
+}

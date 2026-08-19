@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod events;
+pub mod hosts;
 pub mod invites;
 pub mod media;
 pub mod messages;
@@ -70,6 +71,9 @@ pub fn configure(cfg: &mut axw::ServiceConfig) {
                 .route("/events/{id}", axw::patch().to(events::edit))
                 .route("/events/{id}/publish", axw::post().to(events::publish))
                 .route("/events/{id}/cancel", axw::post().to(events::cancel))
+                .route("/events/{id}/hosts", axw::get().to(hosts::list))
+                .route("/events/{id}/hosts", axw::post().to(hosts::add))
+                .route("/events/{id}/hosts/{uid}", axw::delete().to(hosts::remove))
                 .route("/events/{id}/invites", axw::post().to(invites::create))
                 .route("/events/{id}/invites", axw::get().to(invites::list))
                 .route("/events/{id}/messages", axw::post().to(messages::post))

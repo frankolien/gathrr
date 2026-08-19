@@ -1,6 +1,7 @@
 use gathr_application::events::EventDetail;
 use gathr_application::rsvps::RsvpView;
 use gathr_domain::{Category, EventStatus, RsvpStatus};
+use gathr_infra_db::hosts::HostRecord;
 use gathr_infra_db::notifications::NotificationRecord;
 use gathr_infra_db::{EventSummaryRecord, GuestRecord, InviteRecord};
 use serde::{Deserialize, Serialize};
@@ -468,6 +469,7 @@ pub struct BlockListResponse {
 #[derive(Debug, Serialize)]
 pub struct ErasureResponse {
     pub deleted: bool,
+    pub events_handed_over: usize,
     pub events_cancelled: usize,
     pub messages_redacted: u64,
 }
@@ -519,4 +521,39 @@ pub struct ExportResponse {
     pub messages: Vec<ExportedMessageResponse>,
     pub identities: Vec<ExportedIdentityResponse>,
     pub blocked_user_ids: Vec<Uuid>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AddHostRequest {
+    pub user_id: Uuid,
+}
+
+#[derive(Debug, Serialize)]
+pub struct HostResponse {
+    pub user_id: Uuid,
+    pub display_name: String,
+    pub role: String,
+    #[serde(with = "time::serde::rfc3339")]
+    pub added_at: OffsetDateTime,
+}
+
+#[derive(Debug, Serialize)]
+pub struct HostListResponse {
+    pub hosts: Vec<HostResponse>,
+}
+
+impl From<Vec<HostRecord>> for HostListResponse {
+    fn from(records: Vec<HostRecord>) -> Self {
+        Self {
+            hosts: records
+                .into_iter()
+                .map(|record| HostResponse {
+                    user_id: record.user_id,
+                    display_name: record.display_name,
+                    role: record.role,
+                    added_at: record.added_at,
+                })
+                .collect(),
+        }
+    }
 }

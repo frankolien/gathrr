@@ -1,0 +1,18 @@
+[package]
+name = "gathr-infra-oidc"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+jsonwebtoken.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+time.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

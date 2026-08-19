@@ -48,3 +48,46 @@ pub async fn insert(
     .map_err(DbError::from_sqlx)
 }
 
+pub async fn find_pending(
+    db: &Db,
+    channel: &str,
+    destination: &str,
+) -> Result<Option<OtpChallengeRecord>, DbError> {
+    sqlx::query_as!(
+        OtpChallengeRecord,
+        r#"SELECT id, code_hash, attempts, expires_at
+           FROM otp_challenges
+           WHERE channel = ($1::text)::otp_channel
+             AND destination = $2
+             AND consumed_at IS NULL
+           ORDER BY created_at DESC
+           LIMIT 1"#,
+        channel,
+        destination
+    )
+    .fetch_optional(db)
+    .await
+    .map_err(DbError::from_sqlx)
+}
+
+pub async fn record_failed_attempt(db: &Db, id: Uuid) -> Result<(), DbError> {
+    sqlx::query!(
+        r#"UPDATE otp_challenges SET attempts = attempts + 1 WHERE id = $1"#,
+        id
+    )
+    .execute(db)
+    .await
+    .map(|_| ())
+    .map_err(DbError::from_sqlx)
+}
+
+pub async fn consume(db: &Db, id: Uuid) -> Result<(), DbError> {
+    sqlx::query!(
+        r#"UPDATE otp_challenges SET consumed_at = now() WHERE id = $1"#,
+        id
+    )
+    .execute(db)
+    .await
+    .map(|_| ())
+    .map_err(DbError::from_sqlx)
+}

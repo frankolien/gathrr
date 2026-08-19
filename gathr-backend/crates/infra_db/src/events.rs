@@ -149,3 +149,97 @@ pub async fn find(db: &Db, id: Uuid) -> Result<Option<EventRecord>, DbError> {
     row.map(EventRow::into_record).transpose()
 }
 
+pub async fn lock(tx: &mut Tx<'_>, id: Uuid) -> Result<Option<EventRecord>, DbError> {
+    let row = sqlx::query_as!(
+        EventRow,
+        r#"SELECT id, host_id, title, category, description, location_name,
+                  starts_at, ends_at, timezone, capacity, max_plus_ones,
+                  status::text AS "status!"
+           FROM events WHERE id = $1 FOR UPDATE"#,
+        id
+    )
+    .fetch_optional(&mut **tx)
+    .await
+    .map_err(DbError::from_sqlx)?;
+
+    row.map(EventRow::into_record).transpose()
+}
+
+pub async fn set_status(db: &Db, id: Uuid, status: EventStatus) -> Result<(), DbError> {
+    sqlx::query!(
+        r#"UPDATE events SET status = ($2::text)::event_status, updated_at = now()
+           WHERE id = $1"#,
+        id,
+        status.as_str()
+    )
+    .execute(db)
+    .await
+    .map_err(DbError::from_sqlx)?;
+    Ok(())
+}
+
+pub async fn find_summary(db: &Db, id: Uuid) -> Result<Option<EventSummaryRecord>, DbError> {
+    let row = sqlx::query_as!(
+        SummaryRow,
+        r#"SELECT e.id, e.host_id, e.title, e.category, e.description, e.location_name,
+                  e.starts_at, e.ends_at, e.timezone, e.capacity, e.max_plus_ones,
+                  e.status::text AS "status!",
+                  COALESCE(g.going_guests, 0) AS "going_guests!",
+                  COALESCE(g.preview_names, ARRAY[]::text[]) AS "preview_guest_names!"
+           FROM events e
+           LEFT JOIN LATERAL (
+             SELECT COUNT(*)::int AS going_guests,
+                    (ARRAY_AGG(u.display_name ORDER BY r2.updated_at))[1:4] AS preview_names
+             FROM rsvps r2
+             JOIN users u ON u.id = r2.user_id
+             WHERE r2.event_id = e.id AND r2.status = 'going'
+           ) g ON TRUE
+           WHERE e.id = $1"#,
+        id
+    )
+    .fetch_optional(db)
+    .await
+    .map_err(DbError::from_sqlx)?;
+
+    row.map(SummaryRow::into_record).transpose()
+}
+
+pub async fn feed_this_week(
+    db: &Db,
+    user_id: Uuid,
+    from: OffsetDateTime,
+    until: OffsetDateTime,
+) -> Result<Vec<EventSummaryRecord>, DbError> {
+    let rows = sqlx::query_as!(
+        SummaryRow,
+        r#"SELECT e.id, e.host_id, e.title, e.category, e.description, e.location_name,
+                  e.starts_at, e.ends_at, e.timezone, e.capacity, e.max_plus_ones,
+                  e.status::text AS "status!",
+                  COALESCE(g.going_guests, 0) AS "going_guests!",
+                  COALESCE(g.preview_names, ARRAY[]::text[]) AS "preview_guest_names!"
+           FROM events e
+           LEFT JOIN rsvps r ON r.event_id = e.id AND r.user_id = $1
+           LEFT JOIN LATERAL (
+             SELECT COUNT(*)::int AS going_guests,
+                    (ARRAY_AGG(u.display_name ORDER BY r2.updated_at))[1:4] AS preview_names
+             FROM rsvps r2
+             JOIN users u ON u.id = r2.user_id
+             WHERE r2.event_id = e.id AND r2.status = 'going'
+           ) g ON TRUE
+           WHERE (e.host_id = $1 OR r.user_id IS NOT NULL)
+             AND e.status IN ('published', 'ongoing')
+             AND e.starts_at >= $2 AND e.starts_at < $3
+           ORDER BY EXTRACT(EPOCH FROM e.starts_at)
+                    - CASE WHEN e.host_id = $1 THEN 3600 ELSE 0 END
+           LIMIT 20"#,
+        user_id,
+        from,
+        until
+    )
+    .fetch_all(db)
+    .await
+    .map_err(DbError::from_sqlx)?;
+
+    collect_summaries(rows)
+}
+

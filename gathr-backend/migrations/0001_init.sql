@@ -47,3 +47,46 @@ CREATE TABLE invites (
 );
 CREATE INDEX idx_invites_event ON invites(event_id);
 
+CREATE TYPE rsvp_status AS ENUM ('invited','going','maybe','declined','waitlisted');
+
+CREATE TABLE rsvps (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id   UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status     rsvp_status NOT NULL DEFAULT 'invited',
+  plus_ones  INTEGER NOT NULL DEFAULT 0 CHECK (plus_ones >= 0),
+  invite_id  UUID REFERENCES invites(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (event_id, user_id)
+);
+CREATE INDEX idx_rsvps_event_status ON rsvps(event_id, status);
+
+CREATE TABLE messages (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id   UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  sender_id  UUID NOT NULL REFERENCES users(id),
+  seq        BIGINT NOT NULL,
+  body       TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (event_id, seq)
+);
+
+CREATE TABLE devices (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  apns_token   TEXT NOT NULL UNIQUE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE media (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_id     UUID NOT NULL REFERENCES users(id),
+  bucket_key   TEXT NOT NULL,
+  content_type TEXT NOT NULL,
+  width        INTEGER,
+  height       INTEGER,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+

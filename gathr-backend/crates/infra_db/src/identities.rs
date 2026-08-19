@@ -23,3 +23,24 @@ pub async fn find_user(
     .map_err(DbError::from_sqlx)
 }
 
+pub async fn link(
+    tx: &mut Tx<'_>,
+    user_id: Uuid,
+    provider: &str,
+    subject: &str,
+    email: Option<&str>,
+) -> Result<(), DbError> {
+    sqlx::query!(
+        r#"INSERT INTO identities (user_id, provider, subject, email)
+           VALUES ($1, ($2::text)::identity_provider, $3, $4)
+           ON CONFLICT (provider, subject) DO NOTHING"#,
+        user_id,
+        provider,
+        subject,
+        email
+    )
+    .execute(&mut **tx)
+    .await
+    .map(|_| ())
+    .map_err(DbError::from_sqlx)
+}

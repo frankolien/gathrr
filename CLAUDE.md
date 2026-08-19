@@ -45,3 +45,7 @@ Full specification: `handoff.md`. Section references below point there.
 - Enforce the workspace layout (Section 2.1) and SPM layout (Section 3.2). New code goes in the correct crate/package or it does not merge.
 - Crates are created when they hold real code, not in advance. An empty crate is dead code.
 
+## Testing (required)
+- Rust: unit tests on domain; integration tests with testcontainers Postgres. New endpoint => integration test.
+- Swift: Swift Testing for view models/services with fakes. New feature => tests.
+- CI must be green: fmt, clippy -D warnings, tests, sqlx prepare check.

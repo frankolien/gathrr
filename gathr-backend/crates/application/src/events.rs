@@ -143,3 +143,39 @@ pub async fn feed(
     }
 }
 
+pub async fn can_manage(db: &Db, event_id: Uuid, actor_id: Uuid) -> Result<bool, AppError> {
+    let event = events::find(db, event_id)
+        .await?
+        .ok_or(AppError::NotFound)?;
+    Ok(event.host_id == actor_id)
+}
+
+async fn load_manageable(db: &Db, event_id: Uuid, actor_id: Uuid) -> Result<EventRecord, AppError> {
+    let record = events::find(db, event_id)
+        .await?
+        .ok_or(AppError::NotFound)?;
+    if record.host_id != actor_id {
+        return Err(AppError::Forbidden);
+    }
+    Ok(record)
+}
+
+async fn reload(db: &Db, event_id: Uuid) -> Result<EventSummaryRecord, AppError> {
+    events::find_summary(db, event_id)
+        .await?
+        .ok_or(AppError::NotFound)
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct EditEvent {
+    pub title: Option<String>,
+    pub category: Option<Category>,
+    pub description: Option<Option<String>>,
+    pub location_name: Option<Option<String>>,
+    pub starts_at: Option<OffsetDateTime>,
+    pub ends_at: Option<Option<OffsetDateTime>>,
+    pub timezone: Option<String>,
+    pub capacity: Option<Option<i32>>,
+    pub max_plus_ones: Option<i32>,
+}
+

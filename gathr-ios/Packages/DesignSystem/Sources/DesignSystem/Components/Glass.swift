@@ -1,28 +1,26 @@
 import SwiftUI
 
-struct GlassSurface: ViewModifier {
-    let radius: CGFloat
+struct GlassSurface<Outline: InsettableShape>: ViewModifier {
+    let outline: Outline
 
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
-            content.glassEffect(.regular, in: .rect(cornerRadius: radius))
+            content.glassEffect(.regular, in: outline)
         } else {
             content
-                .background(
-                    .ultraThinMaterial,
-                    in: RoundedRectangle(cornerRadius: radius, style: .continuous)
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: radius, style: .continuous)
-                        .strokeBorder(Palette.glassEdge.opacity(0.6), lineWidth: 0.5)
-                }
+                .background(.ultraThinMaterial, in: outline)
+                .overlay { outline.strokeBorder(Palette.glassEdge.opacity(0.6), lineWidth: 0.5) }
         }
     }
 }
 
 extension View {
     public func glassPanel(radius: CGFloat = Radius.tile) -> some View {
-        modifier(GlassSurface(radius: radius))
+        modifier(GlassSurface(outline: RoundedRectangle(cornerRadius: radius, style: .continuous)))
+    }
+
+    public func glassCapsule() -> some View {
+        modifier(GlassSurface(outline: Capsule()))
     }
 }
 

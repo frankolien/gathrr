@@ -116,3 +116,12 @@ pub async fn edit(
     Ok(HttpResponse::Ok().json(EventSummary::from(summary)))
 }
 
+pub async fn remove_guest(
+    state: web::Data<AppState>,
+    user: AuthUser,
+    path: web::Path<(Uuid, Uuid)>,
+) -> Result<HttpResponse, ApiError> {
+    let (event_id, guest_id) = path.into_inner();
+    events::remove_guest(&state.db, event_id, user.0, guest_id).await?;
+    Ok(HttpResponse::NoContent().finish())
+}

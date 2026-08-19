@@ -127,8 +127,7 @@ public struct EventListRow: View {
                 .foregroundStyle(Palette.textTertiary)
         }
         .padding(Spacing.cardPadding)
-        .background(Palette.surface)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
+        .glassPanel(radius: Radius.tile)
         .accessibilityElement(children: .combine)
     }
 }

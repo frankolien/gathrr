@@ -64,8 +64,7 @@ public struct QuickActionTile: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Spacing.cardPadding)
-            .background(Palette.surface)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
+            .glassPanel(radius: Radius.tile)
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)

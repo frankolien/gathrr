@@ -1,0 +1,10 @@
+{
+  "images" : [
+    {
+      "filename" : "GoogleMark.svg",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : { "author" : "gathr", "version" : 1 },
+  "properties" : { "preserves-vector-representation" : true }
+}

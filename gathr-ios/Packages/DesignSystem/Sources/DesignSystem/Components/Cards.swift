@@ -96,3 +96,39 @@ public struct EventHeroCard: View {
     }
 }
 
+public struct EventListRow: View {
+    private let event: Event
+
+    public init(event: Event) {
+        self.event = event
+    }
+
+    public var body: some View {
+        HStack(spacing: Spacing.stackGap) {
+            CoverArt(category: event.category)
+                .frame(width: 44, height: 44)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.thumb, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(event.title)
+                    .font(Typography.headline)
+                    .foregroundStyle(Palette.textPrimary)
+                    .lineLimit(1)
+                Text(EventFormatting.shortWhen(event.startsAt, timezone: event.timezone))
+                    .font(Typography.footnote)
+                    .foregroundStyle(Palette.textSecondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: Spacing.unit)
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Palette.textTertiary)
+        }
+        .padding(Spacing.cardPadding)
+        .background(Palette.surface)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+}

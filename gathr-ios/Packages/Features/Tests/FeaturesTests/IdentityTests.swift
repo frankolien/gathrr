@@ -177,3 +177,53 @@ actor FakeAuthService: AuthService {
 }
 
 
+private struct FakeMediaService: MediaService {
+    let stored = UUID()
+
+    func uploadAvatar(_ imageData: Data) async throws -> UUID { stored }
+}
+
+@MainActor
+@Test func aProfileDerivedFromAnEmailAddressStartsBlankSoNobodyShipsAPlaceholderName() {
+    let media = FakeMediaService()
+    let generated = Account(id: UUID(), displayName: "amara.1787134134", isGuest: false)
+    let chosen = Account(id: UUID(), displayName: "Amara Chukwu", isGuest: false)
+
+    let fromEmail = ProfileSetupModel(account: generated, auth: FakeAuthService(), media: media) { _ in }
+    #expect(fromEmail.name.isEmpty)
+    #expect(!fromEmail.canSave, "an empty name cannot be saved")
+
+    let fromProvider = ProfileSetupModel(account: chosen, auth: FakeAuthService(), media: media) { _ in }
+    #expect(fromProvider.name == "Amara Chukwu", "a name Apple or Google gave us is kept")
+    #expect(fromProvider.canSave)
+}
+
+@MainActor
+@Test func aBioOverTheLimitBlocksSavingAndTheCounterGoesNegative() {
+    let account = Account(id: UUID(), displayName: "Amara Chukwu", isGuest: false)
+    let model = ProfileSetupModel(account: account, auth: FakeAuthService(), media: FakeMediaService()) { _ in }
+
+    model.bio = String(repeating: "a", count: ProfileSetupModel.maximumBioLength)
+    #expect(model.canSave)
+    #expect(model.remainingBioCharacters == 0)
+
+    model.bio += "a"
+    #expect(!model.canSave)
+    #expect(model.remainingBioCharacters == -1)
+}
+
+@MainActor
+@Test func savingAPhotolessProfileNeverTouchesTheUploader() async {
+    var saved: Account?
+    let account = Account(id: UUID(), displayName: "amara.1787134134", isGuest: false)
+    let model = ProfileSetupModel(account: account, auth: FakeAuthService(), media: FakeMediaService()) {
+        saved = $0
+    }
+
+    model.name = "  Amara Chukwu  "
+    model.bio = "  Lover of themed parties  "
+    await model.save()
+
+    #expect(saved?.displayName == "Amara Chukwu")
+    #expect(saved?.bio == "Lover of themed parties")
+}

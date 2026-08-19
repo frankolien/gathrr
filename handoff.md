@@ -707,3 +707,207 @@ Carousel paging: `.interactiveSpring(response: 0.35, dampingFraction: 0.86)`. Ca
 
 ---
 
+## 8. Screen Specifications
+
+### 8.1 Screen Map
+
+| # | Screen | Entry | Primary API | Phase | Mockup |
+|---|---|---|---|---|---|
+| S1 | Onboarding carousel | Cold launch, unauthenticated | none (static) | 1 | ✅ |
+| S2 | Sign in | Onboarding Continue, or gated action | `POST /v1/auth/oauth` (8.12) | 1 | ✖ |
+| S3 | Home | Tab 1 | `GET /v1/events?filter=this_week\|hosting` | 2 | ✅ |
+| S4 | Event detail | Card tap, deep link, push | `GET /v1/events/{id}` | 2 | ✅ |
+| S5 | RSVP sheet | "Your RSVP" | `POST /v1/events/{id}/rsvp` | 3 | ✖ |
+| S6 | Create event | FAB, "New Event" | `POST /v1/media/presign`, `POST /v1/events` | 2 | ✖ |
+| S7 | Share invite | Share glyph on S4 | `POST /v1/events/{id}/invites` | 2 | ✖ |
+| S8 | Join event | "Join Event" tile | `GET /v1/invites/{code}` | 2 | ✖ |
+| S9 | Guest management | "Manage" on S4 | `GET/DELETE /v1/events/{id}/guests` | 3 | ✖ |
+| S10 | Chat | "Chat" on S4 | `GET/POST /v1/events/{id}/messages`, WS | 4 | ✖ |
+| S11 | Profile | Tab 4 | `GET /v1/me` | 1 | ✖ |
+| S12 | Check-in scanner | Guest management, day-of | `POST /v1/events/{id}/checkin` | 3 | ✖ |
+| S13 | Notifications | Bell on S3 | `GET /v1/notifications`, `POST /v1/notifications/read` | 2 | ✅ |
+
+Screens S2 and S5–S12 have no mockup. Build them from the tokens in Section 7 and the layouts below; do not invent new visual primitives.
+
+### 8.2 S1 — Onboarding
+
+**One screen, not a carousel.** There is nothing to swipe and no page dots. The artwork moves, the
+copy changes itself, and a single `PrimaryButton` reads **Get Started**.
+
+`DriftingArtwork` is a seamless horizontal marquee of all five pieces of supplied art — the three
+designed event cards and the two crowd photographs. The strip is **anchored to the leading edge and
+repeated `ceil(screenWidth / cycleWidth) + 1` times**, then offset by the fraction of
+`OnboardingMetrics.driftPeriod` elapsed. Both details matter: an earlier version centred a strip of
+exactly two sets, and once the offset passed halfway the right-hand side ran out of cards and the
+screen showed a band of empty canvas before the loop snapped back. Anchoring leading and sizing the
+repetitions to the viewport is what makes the spacing identical the whole way round. Each piece also bobs
+vertically on its own phase (`bobRate`, `bobHeight`) so the row breathes rather than sliding as a
+rigid block. Rotation on the three designed cards is **baked into the artwork**; the two photographs
+are tilted in code and get a scrim and card radius so they read as event cards beside the designed
+ones.
+
+The copy cycles through `OnboardingCopy.all` every `copyDwell` seconds with a blur-replace
+transition. Copy sits at `copyGutter` (48pt), wider than the CTA's 28pt, which is what produces the
+line breaks the mockups show.
+
+**Motion is disabled wholesale under Reduce Motion**: `TimelineView` is not installed, the bob
+returns zero, and the copy-cycling task returns immediately, so the screen becomes a static
+composition with the first line of copy. This is the accessibility contract, not a nicety — a
+continuously animating screen with no way to stop it is a vestibular hazard.
+
+Get Started presents S2 as a sheet over this screen; onboarding is what a signed-out launch shows,
+so there is no separate "has onboarded" flag to keep in sync.
+
+### 8.3 S3 — Home
+
+A blue gradient header runs edge to edge under the status bar and the content rides on a white sheet with `Radius.sheet` top corners, so the two read as one surface rather than a bar over a page.
+
+Header order: `eyebrow` time-of-day greeting + `titleL` name on the left, bell button in a `headerGlass` rounded square on the right (taps to S13) → `WeekStrip` of seven days, today in a filled white circle, a dot under any day holding an event → the planned count at 46pt rounded-medium beside "event(s)" with an `ActivePill` when it is non-zero → three `HeaderStat` columns: Today, Upcoming, Hosting.
+
+Counts derive from the deduped union of the three feeds, so an event you both host and attend is counted once. Today means starting today in the event's timezone; Upcoming means starting after end of today; the big number is their sum.
+
+Sheet order: "Upcoming" `SectionHeader` + `EventHeroCard` carousel → "Quick actions" two-up (`New Event / Start from scratch` → S6; `Join Event / Scan or enter code` → S8) → "Hosting" `SectionHeader` + up to 3 `EventListRow` → "Attending" section, same shape.
+
+Greeting thresholds in `Africa/Lagos` local time: <12:00 morning, <17:00 afternoon, else evening.
+
+The mockup shows "Hosting" but not "Attending"; the spec requires both feeds (1.3). Render "Attending" with identical treatment directly below, and hide any section whose list is empty rather than showing a per-section empty state.
+
+Hero card overflow ("…") menu: Share, Edit (host only), Cancel event (host only), Remove from my list (guest).
+
+### 8.4 S4 — Event Detail
+
+Order: floating back + share buttons over the scroll → cover card (image, category chip, title, date row, location row, `CountdownSegments` under an "EVENT STARTS IN" eyebrow) → "Guests" `SectionHeader` with "Manage" (host only; guests see no trailing action) + `AvatarCluster` k=6 + "N going · hosted by {host display name}" → "About" → pinned `ActionBar`.
+
+Countdown states: future → segments; started and not ended → "Happening now" pill on `statusGoing`; ended → "This event has ended"; cancelled → "Cancelled" on `statusDeclined` and the `ActionBar` collapses to a single disabled state.
+
+The "N going" figure counts people, not seats: a `going` RSVP with 2 plus-ones contributes 3 to `seats_held` (4.1) but the guest list shows one avatar and the host-facing Manage screen shows "1 guest · 2 plus-ones". Keep the two numbers distinct in the DTO — `going_guests` and `seats_taken` — or the capacity math and the social proof will drift apart.
+
+### 8.5 S5 — RSVP Sheet *(new)*
+
+Medium detent sheet. Three segmented options rendered as full-width rows with status color and check state: **Going** / **Maybe** / **Can't Go**. Below Going, a stepper for plus-ones bounded by the event's `max_plus_ones` (default 2, `0` disables the control entirely). Submit is a `PrimaryButton`.
+
+States the sheet must handle, all of which come back as typed errors from a single endpoint:
+
+| Condition | Behavior |
+|---|---|
+| Not signed in | Sheet still opens; submit triggers S2, then replays the RSVP with the same idempotency key |
+| At capacity, selecting Going | Inline swap: submit becomes "Join waitlist", explanatory `footnote`, response sets `waitlisted` |
+| Offline | Optimistic local write, queued to the outbox (10.1), row shows a "Pending" chip |
+| Event cancelled while sheet open | Sheet dismisses with a toast; the queued write is dropped (10.3) |
+| Plus-ones exceed remaining seats | Stepper clamps at the remaining count with a `footnote` explaining the limit |
+
+The current status is shown on the `ActionBar` button label — "Your RSVP" when unanswered, "Going · +2" when answered.
+
+### 8.6 S6 — Create Event *(new)*
+
+Single scrolling form, not a wizard — the sub-2-minute creation target (1.6) does not survive a multi-step flow. Order: template picker (horizontal `EventPosterCard` row, tapping one prefills category, cover, and copy) → cover image (PhotosPicker, immediate presign + background upload with a progress overlay) → title → date/time (starts, optional ends) → location → category → capacity (optional) → plus-one limit → description → "Publish" / "Save draft".
+
+The cover upload starts the moment the image is chosen, in parallel with the user still typing, so publish is never blocked on a 200KB upload over a 3G link. If the upload has not finished at publish time, publish the event without a cover and attach it with a `PATCH` when it lands.
+
+Time-to-create is instrumented from first field focus to publish success (16.1).
+
+### 8.7 S7 — Share Invite *(new)*
+
+Bottom sheet: large QR (the universal link encoded, `gathr.app/i/{code}`), the code in `numeral` type with tap-to-copy, "Share link" (system share sheet), and "Share to WhatsApp" as a distinct first-class row — see 14.5. Below, an invite settings row: max uses (unlimited default), expiry (none default), and a list of previously generated codes with their use counts.
+
+### 8.8 S8 — Join Event *(new)*
+
+Two paths on one screen: a code field (auto-uppercasing, Crockford-normalizing — `I`→`1`, `L`→`1`, `O`→`0`, `U` rejected) and a "Scan QR" button opening a `DataScannerViewController` camera sheet. Both resolve through `GET /v1/invites/{code}` to S4. Invalid, expired, and exhausted codes get distinct copy, never a generic failure.
+
+### 8.9 S9 — Guest Management *(new)*
+
+Host-only. Sectioned list: Going (with plus-one counts) · Maybe · Invited · Waitlisted · Can't Go, each with a count in the header matching the "18 going" language from the mockup. Row actions: promote from waitlist, remove guest, message guest (Phase 4). A summary header shows `seats_taken / capacity` with a progress bar when capacity is set.
+
+### 8.10 S12 — Check-in *(new)*
+
+The RSVP-to-attendance metric (1.6) has no data source in the original spec. Add a day-of scanner: the host opens S12, each guest presents their RSVP QR from S4, and a scan writes to the `attendance` table (migration 0006). Falls back to a manual tap-to-check-in list. Works fully offline against the cached guest list, syncing through the outbox.
+
+### 8.12 S2 — Sign In *(new)*
+
+**Its own screen, not a sheet.** Get Started presents a full-screen `NavigationStack`, and every
+step after it — destination, then code — is a separate pushed screen with a real back button. Only
+S1 is a single screen; nothing past it shares one.
+
+The sign-up screen carries the **same `DriftingArtwork` marquee** as S1, so the artwork keeps moving
+through the transition rather than cutting to a static page. Under it: a headline, then the doors.
+**Continue with Apple** is the system button; **Continue with Google**, **Phone** and **Email** are
+`ProviderButton`s finished in **Liquid Glass** — `.glassEffect(.regular, in: .capsule)` under
+`if #available(iOS 26.0, *)`, falling back to `.ultraThinMaterial` behind a hairline capsule on
+iOS 17–25, which is what the D4 deployment target requires.
+
+Apple uses the system `SignInWithAppleButton` — never a hand-rolled imitation, which is an App Store
+rejection. Google is **hidden entirely when no client ID is configured** rather than shown broken,
+and carries Google's official four-colour mark as a vector asset (`GoogleMark.svg`, rendered
+`.original` so it is never tinted). Both produce an OIDC ID token for `POST /v1/auth/oauth`.
+
+Email runs a two-step code flow across two pushed screens — destination, then a six-box code field.
+`POST /v1/auth/otp/request` issues a 6-digit code hashed at rest with a 10-minute expiry,
+superseding any pending code for that destination so a retired code can never be replayed. `POST /v1/auth/otp/verify` allows **five wrong attempts** before the
+challenge locks with `otp_attempts_exceeded`; a wrong code clears the field rather than leaving the
+user to delete six digits. Destinations are normalized before both issue and verify — email
+lowercased, phone reduced to digits and `+` — so the same person in a different case reaches the
+same account rather than creating a second one.
+
+Verification returns a normal Gathr token pair, so everything downstream of sign-in is unchanged
+whichever of the three doors was used.
+
+**Phone sign-in has been cut** (D11 revised). It was the only door that needed an SMS provider, and
+on Nigerian networks DND filtering makes that provider decision consequential rather than routine
+(14.2). Rather than ship a door that silently fails, `Channel` now has a single `Email` variant and
+the phone branches are deleted on both sides — the `otp_channel` Postgres enum keeps its `phone`
+value as schema history, but nothing constructs it.
+
+**The development-name shortcut has been removed from the app.** It existed so the UI test and a
+local developer could reach Home before any provider was configured; now that email codes work, the
+demo test signs in the way a real person does. `POST /v1/auth/dev` survives as a **server-side test
+seam** behind `GATHR_ALLOW_DEV_AUTH` — the integration suite uses it to mint a session in one call —
+but it no longer has any user-visible surface.
+
+**Nonce handling differs per provider and this is the easiest thing to get wrong.** The client
+generates one random nonce. Apple is handed `SHA256(nonce)` and echoes that hash in the token's
+`nonce` claim; Google is handed the nonce verbatim and echoes it verbatim. The server therefore
+applies the provider-appropriate transform before comparing (`Provider::expected_nonce`). A failed
+attempt **retires the nonce** — the next attempt generates a fresh one — so a token captured from a
+failed attempt cannot be replayed into a later one.
+
+Google uses the authorization-code flow with PKCE through `ASWebAuthenticationSession`; the redirect
+scheme is the reversed client ID, and the code is exchanged for the ID token on device. iOS OAuth
+clients have no client secret, so nothing confidential lives in the app.
+
+**Display name** comes from the provider: Google's `name` claim, or Apple's `fullName`, which Apple
+returns **only on the first authorization for that App ID** — so the client sends it in the request
+body and the server stores it only when creating the user. If neither yields a name, the server
+falls back to the email local part, and only then rejects with `validation_failed`. The name is
+editable afterwards in S11, which is the escape hatch for Apple's Hide My Email users.
+
+Accounts are keyed on `(provider, subject)` in the `identities` table. **Identities are never
+auto-linked by email**: an unverified email match is an account-takeover primitive, and Apple's
+private relay addresses make it unreliable anyway. Signing in with Google after Apple creates a
+second account until explicit linking ships.
+
+A development-only display-name field appears below the providers when `GathrAllowDevSignIn` is set
+in the app's Info.plist, matched by `GATHR_ALLOW_DEV_AUTH` on the server. It is how the UI test
+drives the demo and how the app stays runnable before provider credentials are issued. Both flags
+must be off in any build that reaches a real user.
+
+### 8.13 S13 — Notifications
+
+Same two-part surface as S3: a short blue header (back button, "Notifications" `titleL`, "N unread" or "You're all caught up", and a "Mark read" glass capsule that appears only when something is unread) over the white sheet.
+
+The sheet groups entries into Today / Yesterday / This week / Earlier, dropping any bucket that is empty. Each row is one `Palette.surface` card: a tinted circular glyph, the headline with the actor's name in bold, the event title beneath it, and a relative timestamp with an accent dot while unread. Tapping a row opens S4 for that event. Every row is a single VoiceOver element.
+
+Headlines by kind: `rsvp_accepted` "**{name}** is going" · `rsvp_declined` "**{name}** can't make it" · `rsvp_waitlisted` "**{name}** joined the waitlist" · `message_posted` "**{name}** sent a message" · `event_published` "Your event is live" · `event_cancelled` "**{name}** called the event off" · `event_reminder` "Starting soon".
+
+Fan-out rules live server-side: RSVP outcomes reach the host alone, chat and cancellations reach every member except the person who caused them, publishing reaches the host too, and a muted event writes nothing for the person who muted it. Chat collapses to one unread line per event and only earns a new line once the reader has caught up.
+
+### 8.11 Universal States
+
+Every list and detail screen implements four states, and each is a snapshot test:
+
+- **Loading**: skeleton shapes at the exact geometry of the loaded content, never a spinner on a blank screen.
+- **Empty**: illustration + one sentence + one action. Home with no events shows the "New Event" and "Join Event" tiles promoted to full width.
+- **Error**: cached content stays on screen with a non-blocking banner; a full-screen error appears only when there is nothing cached.
+- **Offline**: a persistent thin banner ("Offline — showing saved events") plus per-row "Pending" chips for queued writes. Reads never fail while cache exists (1.4).
+
+---
+

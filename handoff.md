@@ -596,3 +596,114 @@ Phase 5: Hardening
 
 ---
 
+## 7. Design System Specification
+
+Tokens below are read off the three reference mockups (onboarding, home, event detail). Everything in `DesignSystem` is a token; no literal colors, sizes, or radii anywhere in feature packages. Anything marked *(extension)* is not in the mockups and is designed to match.
+
+### 7.1 Color Tokens
+
+| Token | Light | Dark *(extension)* | Usage |
+|---|---|---|---|
+| `canvas` | `#F2F3F5` | `#0B0B0C` | Screen background |
+| `surface` | `#FFFFFF` | `#1C1C1E` | Cards, tiles, list rows, tab bar |
+| `surfaceInset` | `#F0F1F3` | `#2C2C2E` | Countdown segments, About box |
+| `surfaceInsetActive` | `#E7E8EB` | `#3A3A3C` | Focused countdown segment ("09 Days") |
+| `textPrimary` | `#111214` | `#FFFFFF` | Titles, body |
+| `textSecondary` | `#8E8E93` | `#98989F` | Meta rows, subtitles, onboarding subhead |
+| `textTertiary` | `#B0B0B5` | `#6C6C70` | Disabled, placeholder |
+| `accent` | `#007AFF` | `#0A84FF` | Primary button, "See all", "Manage", "Skip", FAB |
+| `accentPressed` | `#0062CC` | `#3395FF` | Pressed state |
+| `onAccent` | `#FFFFFF` | `#FFFFFF` | Label on accent |
+| `separator` | `#E5E5EA` | `#38383A` | Hairlines, tab bar top edge |
+| `onPhoto` | `#FFFFFF` | `#FFFFFF` | Text over cover imagery |
+| `glassChip` | `rgba(28,28,30,0.45)` + 20pt blur | same | "Hosting", "BIRTHDAY" chips over photos |
+| `pillOnPhoto` | `rgba(255,255,255,0.92)` | same | "In 9 days" countdown pill |
+
+Status colors *(extension — required by the RSVP sheet and guest list, absent from mockups)*:
+
+| Token | Value | Meaning |
+|---|---|---|
+| `statusGoing` | `#34C759` | Going |
+| `statusMaybe` | `#FF9F0A` | Maybe |
+| `statusDeclined` | `#FF3B30` | Can't Go |
+| `statusWaitlisted` | `#AF52DE` | Waitlisted |
+| `statusInvited` | `#8E8E93` | Invited, no response |
+
+Photo scrim: vertical linear gradient `rgba(0,0,0,0)` at 45% height to `rgba(0,0,0,0.60)` at 100%. The scrim is mandatory, not decorative — it is what makes `onPhoto` text meet 4.5:1 contrast over arbitrary user-uploaded imagery (see 15.1).
+
+### 7.2 Type Scale
+
+System font (SF Pro), Dynamic Type enabled on every token via `relativeTo:`.
+
+| Token | Size / Weight | Tracking | SwiftUI base | Usage in mockups |
+|---|---|---|---|---|
+| `display` | 28 / Bold | -0.2 | `.title` | "Create beautiful invitations" |
+| `titleL` | 24 / Bold | -0.3 | `.title2` | Hero card title "Amara's 26th Birthday" |
+| `titleM` | 22 / Bold | -0.2 | `.title3` | Event detail title |
+| `titleS` | 20 / Bold | 0 | `.title3` | Section headers, greeting name "Dara" |
+| `headline` | 17 / Semibold | 0 | `.headline` | List row titles, button labels |
+| `body` | 16 / Regular | 0 | `.body` | About copy |
+| `subhead` | 15 / Regular | 0 | `.subheadline` | Onboarding subtitle |
+| `footnote` | 13 / Regular | 0 | `.footnote` | Date/location meta, tile subtitles |
+| `eyebrow` | 12 / Medium, uppercase | +0.6 | `.caption` | "GOOD EVENING", "EVENT STARTS IN" |
+| `chip` | 11 / Semibold, uppercase | +0.5 | `.caption2` | "BIRTHDAY", "Hosting" |
+| `numeral` | 20 / Semibold, **monospaced digits** | 0 | `.title3.monospacedDigit()` | Countdown "09 / 14 / 32" |
+
+`numeral` must use `.monospacedDigit()`. Proportional digits make the countdown reflow on every tick, which reads as a visual stutter on the highest-value screen in the app.
+
+All type is **SF Pro Rounded at weight `.medium`** — one family, one weight, hierarchy carried by
+size alone. `Typography` is the only place a font is constructed; call sites that previously bolted
+`.weight(...)` onto a token have been stripped, because a second weight defeats the point.
+
+### 7.3 Spacing, Radii, Elevation
+
+Base unit 4pt. `gutter` 20 · `cardPadding` 16 · `stackGap` 12 · `sectionGap` 28 · `rowHeight` 64.
+
+Radii: `hero` 20 · `card` 20 · `tile` 16 · `image` 16 · `thumb` 10 · `pill` = height/2.
+
+Elevation: `card` = `0 4 16 rgba(0,0,0,0.06)` · `raised` = `0 8 24 rgba(0,0,0,0.10)` · `fab` = `0 6 16 rgba(0,122,255,0.35)`.
+
+Minimum hit target 44×44 for every interactive element, including the "…" overflow on the hero card and the carousel page dots.
+
+### 7.4 Component Inventory
+
+Each is a public type in `DesignSystem` with a snapshot test (3.8) and previews for light/dark, Dynamic Type XL and AX3, and long-content overflow.
+
+| Component | Anatomy | Notes |
+|---|---|---|
+| `EventPosterCard` | 3:4 portrait, role badge top-left (crown + "Hosting"), centered bottom stack: avatar cluster → title → date → location, all `onPhoto` | Onboarding carousel. Side cards render at 0.88 scale, 60% opacity |
+| `EventHeroCard` | 4:3, category chip top-left, overflow top-right, title (2 lines max, truncating), date row, location row, bottom row: avatar cluster + "+N going" on the left, countdown pill on the right | "This week" carousel |
+| `EventListRow` | 44×44 thumb (`thumb` radius) · title `headline` · subtitle `footnote` secondary · chevron | Hosting / Attending lists |
+| `CategoryChip` | SF Symbol + uppercase label | `glass` variant over photos, `tinted` variant on `surface` |
+| `RoleBadge` | crown glyph + "Hosting" | Glass only |
+| `CountdownPill` | Single relative string, "In 9 days" | Card-level. Recomputed on the minute |
+| `CountdownSegments` | 3 equal segments Days/Hours/Mins, first segment on `surfaceInsetActive` | Detail-level. One `TimelineView(.periodic(by: 60))` per screen, never per segment |
+| `AvatarCluster` | Overlapping circles, −8pt overlap, 2pt `surface` ring | `k` configurable: 4 on cards (linear), 6 on detail (staggered 3+3) |
+| `QuickActionTile` | Icon · title `headline` · subtitle `footnote` | Two-up grid, equal height |
+| `SectionHeader` | `titleS` + trailing `accent` action | "This week / See all", "Guests / Manage" |
+| `PrimaryButton` | 56pt height, `onAccent` on `accent` | `.pill` (onboarding) and `.rounded` (detail action bar) variants |
+| `SecondaryButton` | 56pt, `textPrimary` on `surfaceInset` | "Your RSVP" |
+| `ActionBar` | Bottom-pinned pair, safe-area inset, `surface` with top hairline | Event detail |
+| `TabBar` | 4 slots + detached FAB | See D1 in Section 17 |
+| `PageDots` | Active = `accent` 8pt capsule, inactive 6pt `textTertiary` | Onboarding + carousel |
+
+### 7.5 Category Taxonomy
+
+`events.category` is currently free `TEXT` (2.10) but the UI needs a stable icon and tint per value. Constrain it to this closed set at the application layer (not a Postgres enum — new categories should not require a migration), and default unknown values to `other`.
+
+| Value | Label | SF Symbol | Tint |
+|---|---|---|---|
+| `birthday` | BIRTHDAY | `birthday.cake.fill` | `#FF375F` |
+| `party` | PARTY | `party.popper.fill` | `#AF52DE` |
+| `meetup` | MEETUP | `person.3.fill` | `#0A84FF` |
+| `dinner` | DINNER | `fork.knife` | `#FF9500` |
+| `game_night` | GAME NIGHT | `gamecontroller.fill` | `#30D158` |
+| `wedding` | WEDDING | `heart.fill` | `#FF2D55` |
+| `other` | EVENT | `calendar` | `#8E8E93` |
+
+### 7.6 Motion
+
+Carousel paging: `.interactiveSpring(response: 0.35, dampingFraction: 0.86)`. Card press: scale 0.97, 120ms. Sheet presentation: system. Countdown segment value change: no animation (a number that animates on every tick is noise). All motion respects `accessibilityReduceMotion`, which disables the onboarding parallax and card press scaling.
+
+---
+

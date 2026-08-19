@@ -270,3 +270,42 @@ public struct TokenPair: Codable, Sendable, Hashable {
     }
 }
 
+public enum IdentityProvider: String, Codable, Sendable, CaseIterable {
+    case apple
+    case google
+}
+
+public struct IdentityCredential: Sendable, Hashable {
+    public let provider: IdentityProvider
+    public let idToken: String
+    public let nonce: String?
+    public let displayName: String?
+
+    public init(
+        provider: IdentityProvider,
+        idToken: String,
+        nonce: String? = nil,
+        displayName: String? = nil
+    ) {
+        self.provider = provider
+        self.idToken = idToken
+        self.nonce = nonce
+        self.displayName = displayName
+    }
+}
+
+public enum VerificationChannel: String, Codable, Sendable, CaseIterable {
+    case email
+}
+
+public struct VerificationChallenge: Codable, Sendable, Hashable {
+    public let destination: String
+    public let expiresInSeconds: Int
+    public let developmentCode: String?
+
+    public init(destination: String, expiresInSeconds: Int, developmentCode: String?) {
+        self.destination = destination
+        self.expiresInSeconds = expiresInSeconds
+        self.developmentCode = developmentCode
+    }
+}

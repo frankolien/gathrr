@@ -74,3 +74,25 @@ pub async fn record_published(db: &Db, event_id: Uuid) {
     );
 }
 
+pub async fn record_cancelled(db: &Db, event_id: Uuid, actor_id: Uuid) {
+    settle(
+        feed_rows::notify_members(db, event_id, Some(actor_id), EVENT_CANCELLED).await,
+        EVENT_CANCELLED,
+        event_id,
+    );
+}
+
+pub async fn record_reminder(db: &Db, event_id: Uuid) {
+    settle(
+        feed_rows::notify_members(db, event_id, None, EVENT_REMINDER).await,
+        EVENT_REMINDER,
+        event_id,
+    );
+}
+
+fn settle(outcome: Result<u64, gathr_infra_db::DbError>, kind: &str, event_id: Uuid) {
+    match outcome {
+        Ok(rows) => tracing::debug!(%event_id, kind, rows, "activity recorded"),
+        Err(error) => tracing::warn!(%event_id, kind, %error, "activity could not be recorded"),
+    }
+}

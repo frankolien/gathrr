@@ -99,3 +99,10 @@ pub async fn hosted_event_ids(db: &Db, user_id: Uuid) -> Result<Vec<Uuid>, DbErr
     .map_err(DbError::from_sqlx)
 }
 
+pub async fn erase(db: &Db, user_id: Uuid) -> Result<bool, DbError> {
+    sqlx::query!(r#"DELETE FROM users WHERE id = $1"#, user_id)
+        .execute(db)
+        .await
+        .map(|done| done.rows_affected() > 0)
+        .map_err(DbError::from_sqlx)
+}

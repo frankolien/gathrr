@@ -42,3 +42,28 @@ fn authenticate(req: &HttpRequest) -> Result<Uuid, AppError> {
 
 pub struct IdempotencyKey(pub String);
 
+impl FromRequest for IdempotencyKey {
+    type Error = ApiError;
+    type Future = Ready<Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
+        let key = req
+            .headers()
+            .get(IDEMPOTENCY_HEADER)
+            .and_then(|value| value.to_str().ok())
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty());
+
+        ready(match key {
+            Some(key) => Ok(Self(key)),
+            None => Err(ApiError(AppError::Validation(
+                "an Idempotency-Key header is required on this request".to_owned(),
+            ))),
+        })
+    }
+}
+
+pub fn guest_cookie_token(req: &HttpRequest) -> Option<String> {
+    req.cookie(GUEST_COOKIE)
+        .map(|cookie| cookie.value().to_owned())
+}

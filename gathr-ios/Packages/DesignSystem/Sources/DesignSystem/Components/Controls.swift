@@ -107,3 +107,46 @@ public struct PrimaryButton: View {
     }
 }
 
+public struct SecondaryButton: View {
+    private let title: String
+    private let action: () -> Void
+
+    public init(_ title: String, action: @escaping () -> Void) {
+        self.title = title
+        self.action = action
+    }
+
+    public var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(Typography.headline)
+                .foregroundStyle(Palette.textPrimary)
+                .frame(maxWidth: .infinity, minHeight: 56)
+                .background(Palette.surfaceInset)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+public struct PageDots: View {
+    private let count: Int
+    private let selection: Int
+
+    public init(count: Int, selection: Int) {
+        self.count = count
+        self.selection = selection
+    }
+
+    public var body: some View {
+        HStack(spacing: 6) {
+            ForEach(0..<max(count, 1), id: \.self) { index in
+                Capsule()
+                    .fill(index == selection ? Palette.accent : Palette.textTertiary)
+                    .frame(width: index == selection ? 18 : 6, height: 6)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Page \(selection + 1) of \(count)")
+    }
+}

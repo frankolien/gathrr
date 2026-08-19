@@ -10,3 +10,13 @@ pub mod notifications;
 pub mod otp;
 pub mod pool;
 pub mod records;
+pub mod reminders;
+pub mod rsvps;
+pub mod tokens;
+pub mod users;
+
+pub use error::DbError;
+pub use pool::{connect, run_migrations, Db, Tx};
+pub use records::{
+    EventRecord, EventSummaryRecord, GuestRecord, InviteRecord, RsvpRecord, UserRecord,
+};

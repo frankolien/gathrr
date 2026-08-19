@@ -1557,3 +1557,23 @@ The gate at Phase 2 is the important one. It is where most products in this cate
 
 ---
 
+## 24. Platform Maturity Ladder
+
+This is the actual difference between a good app and an enterprise-grade one. None of it demos. All of it is visible in its absence.
+
+**L0 — Release control** (Phase 0, non-negotiable): feature flags with owners and expiry · remote kill switch, tested quarterly · server-driven config · min-supported-client with a forced-upgrade screen · staged App Store rollout (1% → 10% → 50% → 100%) with release-health gating · TestFlight ring for the team, then 100 external testers.
+
+**L1 — Support** (Phase 2): admin console (22.2) · every support action audit-logged with actor and reason · a user-facing `X-Request-Id` shown in error UI (12.1) so a screenshot is a debuggable artifact · runbooks for the ten most likely failures, written before they happen.
+
+**L2 — Reliability** (Phase 3): SLOs, not dashboards — 99.9% availability is a 43-minute monthly error budget, and **when the budget burns, feature work stops until it recovers** · on-call rotation with a real escalation path, even if it is two people · blameless incident review within 48 hours · dependency failure drills: R2 down, APNs down, Postgres failover · restore-from-backup drill with a measured RPO/RTO, quarterly · load test at 10× expected peak before every major launch · cost-per-monthly-active-user tracked as a first-class metric.
+
+**L3 — Data** (Phase 4): an event pipeline that is not the product database · a warehouse with modeled funnels (16.2) · self-serve dashboards so product questions do not queue behind engineering · experimentation platform once traffic supports it · data quality alerts, because a silently broken analytics event is worse than a missing one.
+
+**L4 — Trust & safety** (continuous, starting Phase 3): report queue with a defined SLA (24h for harassment, 1h for imminent-harm categories) · appeals path, since an unappealable ban is how you lose a real user to a false positive · age gating and a policy for minors · legal-request process and a transparency posture · a written content policy before you need one · escalation path for CSAM/NCII with the mandatory reporting obligations that attach.
+
+**L5 — Compliance** (as required): NDPA 2023 and GDPR obligations already in 13.3 · DPIA before any new category of processing · subprocessor register, published · automated retention enforcement, not a documented intention · SOC 2 only if the enterprise track activates (Section 25).
+
+If you build only one item from this entire section, build the **admin console**. It converts every future production problem from an engineering incident into a support ticket, and that single change is most of what "operational maturity" actually means.
+
+---
+

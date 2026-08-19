@@ -6,6 +6,7 @@ pub mod ids;
 pub mod invite;
 pub mod invite_code;
 pub mod message;
+pub mod report;
 pub mod rsvp;
 
 pub use capacity::{Admission, CapacityContext, DEFAULT_MAX_PLUS_ONES};
@@ -16,4 +17,5 @@ pub use ids::{EventId, InviteId, RsvpId, UserId};
 pub use invite::InviteTerms;
 pub use invite_code::{InviteCode, CODE_LENGTH};
 pub use message::{PostingRight, MAX_MESSAGE_LENGTH};
+pub use report::{ReportReason, ReportSubject, MAX_REPORT_DETAIL_LENGTH};
 pub use rsvp::{RsvpOutcome, RsvpRequest, RsvpStatus};

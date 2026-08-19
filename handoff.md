@@ -1287,3 +1287,23 @@ Analytics identifiers are pseudonymous and stripped at 90 days (13.3). No third-
 
 ---
 
+## 17. Scope Decisions
+
+These resolve conflicts between the mockups and the written spec. Each is a decision, not an option.
+
+| # | Conflict | Decision | Rationale |
+|---|---|---|---|
+| **D1** | Mockup has 4 tabs (Home, Explore, Calendar, Profile); Explore is V2 (1.5) and neither Explore nor Calendar exists in the package list (3.2) | Ship the 4-slot bar geometry from Phase 0. Home and Profile are real in MVP; **Calendar** ships in Phase 3 as a month view over the same cached feed (cheap, uses existing data); **Explore** ships behind a feature flag, hidden in the App Store build until V2 | Preserves the designed layout permanently. Reshuffling a tab bar between releases is the single most disorienting change you can make to returning users |
+| **D2** | Mockup makes "Chat" the primary CTA on event detail; chat is Phase 4 (1.5) | Keep the two-button `ActionBar` shape from day one. In MVP, **RSVP is the blue primary** and the second slot holds "Share". When chat ships, Chat takes the primary slot and RSVP becomes the secondary showing current status ("Going · +2") exactly as the mockup shows | The mockup depicts the Phase 4 end state. Shipping a dead or missing button in the highest-attention position is worse than shipping the correct MVP hierarchy |
+| **D3** | Chat is the stated differentiator vs Apple Invites but arrives last | Ship **host announcements** in Phase 2: writes to the same `messages` table, host-only, read-only for guests, plain HTTP polling with no WebSocket | Makes the Chat surface real from launch at near-zero cost, exercises the seq/pagination path early, and de-risks Phase 4 to "add bidirectional + WS" |
+| **D4** | Spec recommends an iOS 18 floor | **iOS 17.0** | 14.4 |
+| **D5** | Web RSVP is the stated top conversion lever with no design or spec | **MVP scope**, Phase 2, per Section 9 | Recommendation 2 is incoherent without it |
+| **D6** | RSVP-to-attendance is a headline metric with no data source | Add QR check-in (8.10) + `attendance` table, Phase 3 | An unmeasurable metric is not a metric |
+| **D7** | `events.category` is free text; UI needs stable icon/tint | Closed set validated at the application layer (7.5), `other` fallback | Avoids a migration per category while keeping rendering total |
+| **D8** | Mockup shows plus-ones nowhere, but capacity math depends on them | Detail shows **people** ("18 going"); host Manage and all capacity math use **seats** | 8.4 |
+| **D9** | Mockups are drawn in flat iOS 17/18 language; Apple's current direction is Liquid Glass (iOS 26) | **Adopt Liquid Glass materials for chrome** — nav, tab bar, action bar, chips — while keeping the mockups' layout, type scale, and spacing unchanged. Deployment floor is iOS 17 (D4), so materials degrade to the flat tokens in 7.1 on older systems | The mockups' translucent chips already lean this way; changing chrome materials is a `DesignSystem` change, while changing layout is a rewrite of every feature package |
+| **D10** | App Clip and web RSVP appear to solve the same problem twice | **Both, from one URL.** `gathr.app/i/{code}` routes to the full app if installed, the App Clip if on iOS without it, and the server-rendered page otherwise | They cover disjoint audiences. The Clip is the better experience for the iOS majority; the web page is the only path that reaches everyone else, and it is also what renders the WhatsApp preview (9.5) |
+| **D11** | What follows onboarding: typing a display name, or an account | **Four doors, no passwords: Phone, Email, Apple, Google.** Apple and Google are one tap and hand back a name we can put on the invite immediately; phone and email fall back to a 6-digit code. Nobody types a display name to get in, and nobody sets a password ever | Typing is the friction, not the account. A provider sheet is one tap; a name field is a keyboard, a decision, and a chance to abandon. But provider-only would strand anyone without a usable Apple or Google account, which in Lagos is not the edge case it is elsewhere — so the code flow is a first-class door, not a fallback. Passwords are refused outright: they add a field, a recovery flow, and a breach liability, and buy nothing here |
+
+---
+

@@ -1577,3 +1577,24 @@ If you build only one item from this entire section, build the **admin console**
 
 ---
 
+## 25. The Enterprise Track (Conditional)
+
+There is a second, literal reading of "enterprise": selling to companies. Luma, Bevy, and Eventbrite all run this line. It is a real business, and it is the wrong business for Gathr today — but the trigger conditions are knowable, so here is the tripwire rather than a guess.
+
+**Do not start this track until all three hold**: a single organization runs 10+ events per quarter on Gathr; someone asks for an invoice, a contract, or a security questionnaire; and consumer retention is already proven, so this is expansion rather than escape from a product that is not working.
+
+**What it actually requires** — note that it is mostly not features:
+
+- **Organizations and RBAC**: an org owns events, not a person. Roles of owner, admin, host, and viewer, with a permission matrix. This is a foundational data-model change and the reason it cannot be bolted on cheaply. If you want to keep the door open at near-zero cost today, do exactly one thing: route every authorization through `can_manage(event, user)` (Section 6.1 non-negotiables) so the check has one implementation to change.
+- **SSO (SAML + OIDC) and SCIM provisioning**: table stakes above roughly 200 seats; irrelevant below it.
+- **Audit logs**: immutable, exportable, retained 1–7 years, covering every mutation with actor, timestamp, IP, and before/after. Design the write path early; retrofitting audit coverage across a codebase is brutal.
+- **Admin console, external-facing**: member management, event policies, branding, usage reporting. Distinct from the internal support console in L1.
+- **Billing**: seats, invoicing, POs, procurement cycles, annual contracts. Assume a 3–9 month sales cycle.
+- **Integrations**: Slack, Google/Microsoft Calendar, HRIS, plus webhooks. This is where the public API becomes justified.
+- **Compliance**: SOC 2 Type II (6–12 months and real money), a DPA, penetration testing, data residency options, and a security questionnaire response library.
+- **SLA with credits**, which converts the L2 error budget from an internal discipline into a contractual obligation.
+
+**The honest cost**: this track roughly doubles engineering scope and adds sales, support, and compliance functions. Committing to it early is the most common way a promising consumer product becomes a mediocre B2B one. Keep `can_manage()` clean, keep the audit-log write path in mind, and otherwise decline until the tripwire fires.
+
+---
+

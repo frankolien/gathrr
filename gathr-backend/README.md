@@ -37,3 +37,15 @@ curl -s -X POST $API/v1/events/$EVENT/invites -H "authorization: Bearer $TOKEN" 
 Open the returned `url` in a browser. RSVP with no account and no app, then read the guest list back
 with `GET /v1/events/{id}/guests`.
 
+## Tests
+
+```bash
+cargo test --workspace          # unit + integration; integration needs Postgres up
+cargo clippy --workspace --all-targets -- -D warnings
+cargo fmt --all --check
+cargo sqlx prepare --workspace --check -- --all-targets
+```
+
+`crates/application/tests/capacity.rs` includes the concurrency test that fires 20 simultaneous
+RSVPs at a capacity-5 event and asserts exactly 5 are admitted.
+

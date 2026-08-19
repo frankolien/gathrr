@@ -36,3 +36,30 @@ pub struct EventSummaryRecord {
     pub preview_guest_names: Vec<String>,
 }
 
+#[derive(Debug, Clone)]
+pub struct InviteRecord {
+    pub id: Uuid,
+    pub event_id: Uuid,
+    pub code: String,
+    pub max_uses: Option<i32>,
+    pub uses: i32,
+    pub expires_at: Option<OffsetDateTime>,
+}
+
+#[derive(Debug, Clone)]
+pub struct RsvpRecord {
+    pub event_id: Uuid,
+    pub user_id: Uuid,
+    pub status: RsvpStatus,
+    pub plus_ones: i32,
+    pub updated_at: OffsetDateTime,
+}
+
+#[derive(Debug, Clone)]
+pub struct GuestRecord {
+    pub user_id: Uuid,
+    pub display_name: String,
+    pub status: RsvpStatus,
+    pub plus_ones: i32,
+}
+

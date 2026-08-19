@@ -1,6 +1,7 @@
 pub mod account;
 pub mod activity;
 pub mod auth;
+pub mod claim;
 pub mod error;
 pub mod events;
 pub mod hosts;

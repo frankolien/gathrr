@@ -22,6 +22,9 @@ pub enum AppError {
     #[error("this invite link isn't valid")]
     InviteInvalid,
 
+    #[error("that guest link has already been used or has expired")]
+    GuestSessionInvalid,
+
     #[error("this key was already used with a different request")]
     IdempotencyConflict,
 
@@ -59,6 +62,7 @@ impl AppError {
             Self::Unauthenticated => "unauthenticated",
             Self::TokenReuseDetected => "token_reuse_detected",
             Self::InviteInvalid => "invite_invalid",
+            Self::GuestSessionInvalid => "guest_session_invalid",
             Self::IdempotencyConflict => "idempotency_conflict",
             Self::Validation(_) => "validation_failed",
             Self::IdentityRejected(_) => "identity_rejected",

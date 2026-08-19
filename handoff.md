@@ -1307,3 +1307,19 @@ These resolve conflicts between the mockups and the written spec. Each is a deci
 
 ---
 
+## 18. Hackathon Cut Line
+
+If this is being built against a demo deadline rather than a release date, the demo that wins is **"create an event on the phone, share the link, RSVP from a second device with no app installed, watch the host's screen update."** That is the whole thesis in 45 seconds. Everything else is decoration.
+
+**Must be real** (nothing here can be faked without breaking the demo): event create + publish, cover upload, invite code + link, the server-rendered web RSVP page, guest RSVP without signup, the host's guest list reflecting it, the countdown.
+
+**Safe to defer**: chat, waitlist promotion, push (the demo shows the UI updating on refresh; APNs certificates are a notorious time sink), phone OTP (D11 makes Apple/Google the only first-run path, and neither needs an SMS provider account), Explore, Calendar, check-in, delta sync (full refetch is fine at demo scale).
+
+**Never fake**: the capacity guard and the idempotency path. They are what a technical judge will probe, and they are cheap to do correctly from the start and expensive to retrofit.
+
+**Suggested order**: (1) migration 0001 + event CRUD + presign; (2) the web invite page — build it *before* the iOS detail screen, since it is the differentiator and the smallest surface; (3) iOS create + home + detail; (4) RSVP both sides; (5) polish the OG image, because the link preview is what everyone sees first.
+
+Seed a demo dataset (`fixtures/demo.sql`) mirroring the mockups exactly — Amara's 26th Birthday, Sat Aug 8 7:00 PM, Victoria Island, 18 going, plus Sunday Super Club and Design System Meetup — so screenshots match the design review with no manual setup.
+
+---
+

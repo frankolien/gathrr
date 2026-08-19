@@ -114,3 +114,40 @@ struct VerificationCodeView: View {
     }
 }
 
+private struct VerificationHeader: View {
+    let symbol: String
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.stackGap) {
+            Image(systemName: symbol)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(Palette.textSecondary)
+                .frame(width: 44, height: 44)
+                .background(Palette.surfaceInset)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.thumb, style: .continuous))
+
+            VStack(alignment: .leading, spacing: Spacing.unit) {
+                Text(title)
+                    .font(Typography.titleM)
+                    .foregroundStyle(Palette.textPrimary)
+                Text(subtitle)
+                    .font(Typography.subhead)
+                    .foregroundStyle(Palette.textSecondary)
+            }
+        }
+    }
+}
+
+private struct FailureNote: View {
+    let phase: SignInModel.Phase
+
+    var body: some View {
+        if case .failed(let message) = phase {
+            Text(message)
+                .font(Typography.footnote)
+                .foregroundStyle(Palette.statusDeclined)
+        }
+    }
+}

@@ -71,3 +71,33 @@ impl Resend {
     }
 }
 
+pub fn verification_message(code: &str) -> (String, String) {
+    (
+        format!("{code} is your Gathr code"),
+        format!(
+            "Your Gathr sign-in code is {code}.\n\n\
+             It expires in 10 minutes and works once.\n\
+             If you didn't ask for this, you can ignore this email."
+        ),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_missing_key_or_sender_leaves_email_unconfigured() {
+        assert!(Resend::new(String::new(), "Gathr <a@b.com>".to_owned()).is_none());
+        assert!(Resend::new("re_x".to_owned(), "   ".to_owned()).is_none());
+        assert!(Resend::new("re_x".to_owned(), "Gathr <a@b.com>".to_owned()).is_some());
+    }
+
+    #[test]
+    fn the_code_leads_the_subject_so_it_is_readable_from_a_notification() {
+        let (subject, body) = verification_message("284917");
+        assert!(subject.starts_with("284917"));
+        assert!(body.contains("284917"));
+        assert!(body.contains("10 minutes"));
+    }
+}

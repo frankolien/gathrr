@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: gathr-pg
+    environment:
+      POSTGRES_USER: gathr
+      POSTGRES_PASSWORD: gathr
+      POSTGRES_DB: gathr
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - gathr-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gathr"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  gathr-pgdata:

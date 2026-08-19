@@ -49,3 +49,16 @@ cargo sqlx prepare --workspace --check -- --all-targets
 `crates/application/tests/capacity.rs` includes the concurrency test that fires 20 simultaneous
 RSVPs at a capacity-5 event and asserts exactly 5 are admitted.
 
+## Layout
+
+| Crate | Holds |
+|---|---|
+| `domain` | Entities, the CAP guard, state machines, invite codes. No framework or IO deps. |
+| `common` | Config, telemetry, the JSON error envelope. |
+| `infra_db` | SQLx repositories. All SQL lives here. |
+| `application` | Use cases. Owns transactions and calls the domain guards. |
+| `api` | Actix handlers, DTOs, extractors, the server-rendered invite page. |
+
+Crates from the specification that hold no code yet (`infra_storage`, `infra_push`, `worker`) are
+deliberately absent rather than empty — see the folder-structure rule in `CLAUDE.md`.
+

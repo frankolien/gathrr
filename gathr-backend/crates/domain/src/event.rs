@@ -33,3 +33,44 @@ impl fmt::Display for EventStatus {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EventSchedule {
+    pub starts_at: OffsetDateTime,
+    pub ends_at: Option<OffsetDateTime>,
+}
+
+impl EventSchedule {
+    pub fn observed_status(&self, stored: EventStatus, now: OffsetDateTime) -> EventStatus {
+        if stored != EventStatus::Published && stored != EventStatus::Ongoing {
+            return stored;
+        }
+        match self.ends_at {
+            Some(ends_at) if now >= ends_at => EventStatus::Ended,
+            _ if now >= self.starts_at => EventStatus::Ongoing,
+            _ => EventStatus::Published,
+        }
+    }
+}
+
+pub fn publish(
+    current: EventStatus,
+    title: &str,
+    schedule: Option<EventSchedule>,
+) -> Result<EventStatus, DomainError> {
+    if current != EventStatus::Draft {
+        return Err(DomainError::IllegalEventTransition {
+            from: current,
+            to: EventStatus::Published,
+        });
+    }
+    if title.trim().is_empty() {
+        return Err(DomainError::EventIncomplete { field: "a title" });
+    }
+    if schedule.is_none() {
+        return Err(DomainError::EventIncomplete {
+            field: "a start time",
+        });
+    }
+    Ok(EventStatus::Published)
+}
+

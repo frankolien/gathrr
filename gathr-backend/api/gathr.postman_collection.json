@@ -1,0 +1,1393 @@
+{
+  "info": {
+    "name": "Gathr API",
+    "description": "Gathr backend. Set {{baseUrl}}, then run Auth > Dev sign-in (or the OTP pair) to populate {{accessToken}}. Every mutating request needs an Idempotency-Key; the collection sends a fresh {{$guid}} for you.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8080"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "refreshToken",
+      "value": ""
+    },
+    {
+      "key": "eventId",
+      "value": ""
+    },
+    {
+      "key": "inviteCode",
+      "value": ""
+    },
+    {
+      "key": "email",
+      "value": "amara@example.com"
+    },
+    {
+      "key": "otpCode",
+      "value": ""
+    },
+    {
+      "key": "guestId",
+      "value": ""
+    },
+    {
+      "key": "mediaId",
+      "value": ""
+    },
+    {
+      "key": "publicId",
+      "value": ""
+    },
+    {
+      "key": "deviceId",
+      "value": ""
+    },
+    {
+      "key": "apnsToken",
+      "value": ""
+    },
+    {
+      "key": "uploadUrl",
+      "value": ""
+    },
+    {
+      "key": "uploadApiKey",
+      "value": ""
+    },
+    {
+      "key": "uploadTimestamp",
+      "value": ""
+    },
+    {
+      "key": "uploadSignature",
+      "value": ""
+    },
+    {
+      "key": "uploadFolder",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Liveness. No auth."
+          }
+        },
+        {
+          "name": "Ready",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ready",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ready"
+              ]
+            },
+            "description": "Readiness: 200 only when Postgres answers. 503 otherwise. Point your load balancer here, not /health."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Dev sign-in",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "content-type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/auth/dev",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "dev"
+              ]
+            },
+            "description": "Development only; requires GATHR_ALLOW_DEV_AUTH=true. Stores the token pair.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"display_name\": \"Amara Chukwu\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', body.access_token);",
+                  "pm.collectionVariables.set('refreshToken', body.refresh_token);",
+                  "pm.test('signed in', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Request an OTP code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "content-type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/auth/otp/request",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "otp",
+                "request"
+              ]
+            },
+            "description": "Issues a 6-digit code. In a development build the code comes back in the body and is stored as {{otpCode}}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"email\",\n  \"destination\": \"{{email}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.development_code) { pm.collectionVariables.set('otpCode', body.development_code); }",
+                  "pm.test('accepted', () => pm.response.to.have.status(202));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify an OTP code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "content-type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/auth/otp/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "otp",
+                "verify"
+              ]
+            },
+            "description": "Redeems the code and returns a token pair. Five wrong attempts lock the challenge.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"email\",\n  \"destination\": \"{{email}}\",\n  \"code\": \"{{otpCode}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', body.access_token);",
+                  "pm.collectionVariables.set('refreshToken', body.refresh_token);",
+                  "pm.test('signed in', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sign in with Apple or Google",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "content-type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/auth/oauth",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "oauth"
+              ]
+            },
+            "description": "Verifies an OIDC ID token. Answers 503 provider_unavailable until GATHR_APPLE_AUDIENCES / GATHR_GOOGLE_AUDIENCES are set.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"apple\",\n  \"id_token\": \"<provider id token>\",\n  \"nonce\": \"<raw nonce>\",\n  \"display_name\": \"Amara Chukwu\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Refresh",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "content-type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "refresh"
+              ]
+            },
+            "description": "Rotates the pair. Reusing a burnt token revokes the whole family.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', body.access_token);",
+                  "pm.collectionVariables.set('refreshToken', body.refresh_token);",
+                  "pm.test('signed in', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "me"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Rename me",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "content-type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "me"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"display_name\": \"Amara C.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Log out",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Revokes every refresh token this account holds, on every device."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Events",
+      "item": [
+        {
+          "name": "Create + publish",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "idempotency-key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "content-type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "events"
+              ]
+            },
+            "description": "Stores {{eventId}}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Amara's 26th Birthday\",\n  \"category\": \"birthday\",\n  \"description\": \"Small and loud.\",\n  \"location_name\": \"Victoria Island, Lagos\",\n  \"starts_at\": \"2027-09-08T18:00:00Z\",\n  \"timezone\": \"Africa/Lagos\",\n  \"capacity\": 40,\n  \"max_plus_ones\": 2,\n  \"publish_now\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('eventId', body.id);",
+                  "pm.test('created', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Feed",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/events?filter=hosting",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "filter",
+                  "value": "hosting"
+                }
+              ]
+            },
+            "description": "filter is one of this_week, hosting, attending."
+          }
+        },
+        {
+          "name": "Detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/events/{{eventId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "events",
+                "{{eventId}}"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Edit",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "content-type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/events/{{eventId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "events",
+                "{{eventId}}"
+              ]
+            },
+            "description": "Partial. Omit a field to leave it alone; send null to clear it. Capacity cannot drop below seats already taken.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Amara's 27th Birthday\",\n  \"location_name\": \"Lekki, Lagos\",\n  \"capacity\": 60\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Publish",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "idempotency-key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/events/{{eventId}}/publish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "events",
+                "{{eventId}}",
+                "publish"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Cancel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "idempotency-key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/events/{{eventId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "events",
+                "{{eventId}}",
+                "cancel"
+              ]
+            },
+            "description": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "Invites",
+      "item": [
+        {
+          "name": "Create an invite",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "idempotency-key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "content-type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/events/{{eventId}}/invites",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "events",
+                "{{eventId}}",
+                "invites"
+              ]
+            },
+            "description": "Stores {{inviteCode}}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"max_uses\": 50,\n  \"expires_at\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('inviteCode', body.code);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List invites",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/events/{{eventId}}/invites",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "events",
+                "{{eventId}}",
+                "invites"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Resolve a code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/invites/{{inviteCode}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "invites",
+                "{{inviteCode}}"
+              ]
+            },
+            "description": "Unauthenticated. Rate limited to 20/min per caller \u2014 this is the enumeration surface."
+          }
+        },
+        {
+          "name": "Web invite page",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/i/{{inviteCode}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "i",
+                "{{inviteCode}}"
+              ]
+            },
+            "description": "Server-rendered HTML with OG tags."
+          }
+        },
+        {
+          "name": "Web guest RSVP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "content-type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/i/{{inviteCode}}/rsvp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "i",
+                "{{inviteCode}}",
+                "rsvp"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "status",
+                  "value": "going"
+                },
+                {
+                  "key": "display_name",
+                  "value": "Chidi Okonkwo"
+                },
+                {
+                  "key": "plus_ones",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Form post from the server-rendered invite page. Creates a shadow user and a guest session cookie; no account needed."
+          }
+        }
+      ]
+    },
+    {
+      "name": "RSVPs",
+      "item": [
+        {
+          "name": "Submit an RSVP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "idempotency-key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "content-type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/events/{{eventId}}/rsvp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "events",
+                "{{eventId}}",
+                "rsvp"
+              ]
+            },
+            "description": "status is going, maybe, declined or waitlisted. Set accept_waitlist to opt into the waitlist when full; otherwise a full event answers 409 capacity_exceeded.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"going\",\n  \"plus_ones\": 1,\n  \"accept_waitlist\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Guest list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/events/{{eventId}}/guests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "events",
+                "{{eventId}}",
+                "guests"
+              ]
+            },
+            "description": "Host only. Reports going (people) and seats_taken (people + plus-ones) separately."
+          }
+        },
+        {
+          "name": "Promote from the waitlist",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/events/{{eventId}}/guests/{{guestId}}/promote",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "events",
+                "{{eventId}}",
+                "guests",
+                "{{guestId}}",
+                "promote"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Remove a guest",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/events/{{eventId}}/guests/{{guestId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "events",
+                "{{eventId}}",
+                "guests",
+                "{{guestId}}"
+              ]
+            },
+            "description": "Host only. Frees the guest's seats immediately."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Messages",
+      "item": [
+        {
+          "name": "Post a message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "idempotency-key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "content-type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/events/{{eventId}}/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "events",
+                "{{eventId}}",
+                "messages"
+              ]
+            },
+            "description": "Host or any guest with an RSVP. Allocates the next per-event seq and broadcasts to open sockets.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"Doors at 7, come hungry\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Read the thread",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/events/{{eventId}}/messages?after_seq=0&limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "events",
+                "{{eventId}}",
+                "messages"
+              ],
+              "query": [
+                {
+                  "key": "after_seq",
+                  "value": "0"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "Paginate by seq: pass the latest_seq you have as after_seq."
+          }
+        },
+        {
+          "name": "Live stream (WebSocket)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/events/{{eventId}}/stream",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "events",
+                "{{eventId}}",
+                "stream"
+              ]
+            },
+            "description": "WebSocket upgrade. Postman: use a WebSocket request to ws://127.0.0.1:8080/v1/events/{{eventId}}/stream with the same Authorization header. Each new message arrives as one JSON text frame."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Media",
+      "item": [
+        {
+          "name": "Get an upload ticket",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "content-type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/media/sign",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "media",
+                "sign"
+              ]
+            },
+            "description": "purpose is cover or avatar. Returns a Cloudinary signature; the API secret stays on the server. Stores the ticket fields.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"purpose\": \"cover\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const t = pm.response.json();",
+                  "pm.collectionVariables.set('uploadUrl', t.upload_url);",
+                  "pm.collectionVariables.set('uploadApiKey', t.api_key);",
+                  "pm.collectionVariables.set('uploadTimestamp', t.timestamp);",
+                  "pm.collectionVariables.set('uploadSignature', t.signature);",
+                  "pm.collectionVariables.set('uploadFolder', t.folder);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload to Cloudinary",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{uploadUrl}}",
+              "host": [
+                "{{uploadUrl}}"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "api_key",
+                  "value": "{{uploadApiKey}}"
+                },
+                {
+                  "key": "timestamp",
+                  "value": "{{uploadTimestamp}}"
+                },
+                {
+                  "key": "folder",
+                  "value": "{{uploadFolder}}"
+                },
+                {
+                  "key": "signature",
+                  "value": "{{uploadSignature}}"
+                }
+              ]
+            },
+            "description": "Goes straight to Cloudinary, not to Gathr. Pick a file, send, then copy public_id into the next request."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.public_id) { pm.collectionVariables.set('publicId', body.public_id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Record the upload",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "content-type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/media",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "media"
+              ]
+            },
+            "description": "Tells Gathr about a file Cloudinary now holds. Stores {{mediaId}}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"public_id\": \"{{publicId}}\",\n  \"content_type\": \"image/jpeg\",\n  \"width\": 1200,\n  \"height\": 800\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('mediaId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Attach it as the cover",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/events/{{eventId}}/cover/{{mediaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "events",
+                "{{eventId}}",
+                "cover",
+                "{{mediaId}}"
+              ]
+            },
+            "description": "Host only, and only for uploads you recorded. Returns the transformed delivery URL."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Activity feed",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/notifications?limit=40",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "40"
+                },
+                {
+                  "key": "before",
+                  "value": "2027-01-01T00:00:00Z",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Everything that happened to you, newest first, with the unread badge count."
+          },
+          "response": []
+        },
+        {
+          "name": "Mark the feed read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": []\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/notifications/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "notifications",
+                "read"
+              ]
+            },
+            "description": "An empty ids array clears the whole badge; pass ids to clear just those lines."
+          },
+          "response": []
+        },
+        {
+          "name": "Register this device",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "content-type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/devices",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "devices"
+              ]
+            },
+            "description": "Hex APNs token. Re-registering the same token keeps the same row. environment is sandbox or production.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apns_token\": \"{{apnsToken}}\",\n  \"environment\": \"sandbox\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('deviceId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Forget this device",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/devices/{{deviceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "devices",
+                "{{deviceId}}"
+              ]
+            },
+            "description": "Only the account that registered it can remove it."
+          }
+        },
+        {
+          "name": "Mute an event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "content-type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/events/{{eventId}}/mute",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "events",
+                "{{eventId}}",
+                "mute"
+              ]
+            },
+            "description": "Silences reminders for this event without unregistering the device. Send muted:false to undo.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"muted\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

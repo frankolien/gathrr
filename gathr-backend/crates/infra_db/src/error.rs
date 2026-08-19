@@ -15,3 +15,23 @@ pub enum DbError {
     Backend(#[from] sqlx::Error),
 }
 
+impl DbError {
+    pub fn from_sqlx(error: sqlx::Error) -> Self {
+        match &error {
+            sqlx::Error::RowNotFound => Self::NotFound,
+            sqlx::Error::Database(database_error) if database_error.is_unique_violation() => {
+                Self::Conflict {
+                    constraint: database_error
+                        .constraint()
+                        .unwrap_or("a unique index")
+                        .to_owned(),
+                }
+            }
+            _ => Self::Backend(error),
+        }
+    }
+
+    pub fn is_conflict(&self) -> bool {
+        matches!(self, Self::Conflict { .. })
+    }
+}

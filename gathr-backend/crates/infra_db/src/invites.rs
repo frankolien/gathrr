@@ -53,3 +53,22 @@ pub async fn lock_by_code(tx: &mut Tx<'_>, code: &str) -> Result<Option<InviteRe
     .map_err(DbError::from_sqlx)
 }
 
+pub async fn increment_uses(tx: &mut Tx<'_>, id: Uuid) -> Result<(), DbError> {
+    sqlx::query!(r#"UPDATE invites SET uses = uses + 1 WHERE id = $1"#, id)
+        .execute(&mut **tx)
+        .await
+        .map_err(DbError::from_sqlx)?;
+    Ok(())
+}
+
+pub async fn list_for_event(db: &Db, event_id: Uuid) -> Result<Vec<InviteRecord>, DbError> {
+    sqlx::query_as!(
+        InviteRecord,
+        r#"SELECT id, event_id, code, max_uses, uses, expires_at
+           FROM invites WHERE event_id = $1 ORDER BY created_at DESC"#,
+        event_id
+    )
+    .fetch_all(db)
+    .await
+    .map_err(DbError::from_sqlx)
+}

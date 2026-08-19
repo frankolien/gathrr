@@ -23,3 +23,43 @@ struct Recorder {
     delivered: Mutex<Vec<Notification>>,
 }
 
+impl Dispatcher for Recorder {
+    async fn deliver(&self, notification: Notification) -> Result<(), String> {
+        self.delivered.lock().unwrap().push(notification);
+        Ok(())
+    }
+}
+
+impl Recorder {
+    fn for_event(&self, event: Uuid) -> Vec<String> {
+        self.delivered
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|note| note.thread_id == event.to_string())
+            .map(|note| note.body.clone())
+            .collect()
+    }
+}
+
+async fn seed_event(db: &Db, starts_at: OffsetDateTime) -> (Uuid, Uuid) {
+    let host = sqlx::query_scalar!(
+        r#"INSERT INTO users (display_name) VALUES ('Amara Chukwu') RETURNING id"#
+    )
+    .fetch_one(db)
+    .await
+    .unwrap();
+
+    let event = sqlx::query_scalar!(
+        r#"INSERT INTO events (host_id, title, starts_at, status)
+           VALUES ($1, 'Group Therapy', $2, 'published') RETURNING id"#,
+        host,
+        starts_at
+    )
+    .fetch_one(db)
+    .await
+    .unwrap();
+
+    (host, event)
+}
+

@@ -61,3 +61,39 @@ private struct WelcomeGate: View {
 }
 
 
+private struct FirstRun: View {
+    let session: AppSession
+    let account: Account
+
+    @AppStorage("gathr.profileSetUpFor") private var profileSetUpFor = ""
+    @AppStorage("gathr.notificationsDecidedFor") private var notificationsDecidedFor = ""
+
+    private var accountKey: String { account.id.uuidString }
+
+    var body: some View {
+        if profileSetUpFor != accountKey {
+            ProfileSetupView(
+                model: ProfileSetupModel(
+                    account: account,
+                    auth: session.auth,
+                    media: session.media
+                ) { saved in
+                    session.adopt(saved)
+                    withAnimation(.snappy) { profileSetUpFor = accountKey }
+                }
+            )
+        } else if notificationsDecidedFor != accountKey {
+            NotificationPrimerView {
+                withAnimation(.snappy) { notificationsDecidedFor = accountKey }
+            }
+        } else {
+            AppShell(
+                events: session.events,
+                auth: session.auth,
+                activity: session.activity,
+                account: account,
+                onSignOut: { Task { await session.signOut() } }
+            )
+        }
+    }
+}

@@ -59,3 +59,49 @@ public struct WeekStrip: View {
     }
 }
 
+public struct HeaderStat: View {
+    private let value: Int
+    private let label: String
+
+    public init(value: Int, label: String) {
+        self.value = value
+        self.label = label
+    }
+
+    public var body: some View {
+        VStack(spacing: 2) {
+            Text("\(value)")
+                .font(Typography.titleM)
+                .monospacedDigit()
+                .foregroundStyle(Palette.onHeader)
+            Text(label)
+                .font(Typography.footnote)
+                .foregroundStyle(Palette.onHeaderMuted)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(value) \(label)")
+    }
+}
+
+public struct ActivePill: View {
+    private let title: String
+
+    public init(_ title: String) {
+        self.title = title
+    }
+
+    public var body: some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(Palette.statusGoing)
+                .frame(width: 7, height: 7)
+            Text(title)
+                .font(Typography.footnote)
+                .foregroundStyle(Palette.onHeader)
+        }
+        .padding(.horizontal, Spacing.stackGap)
+        .padding(.vertical, 7)
+        .background(Palette.headerGlass, in: Capsule())
+    }
+}

@@ -981,3 +981,60 @@ Serve `/.well-known/apple-app-site-association` as `application/json` with no ex
 
 ---
 
+## 10. Offline Sync Protocol
+
+Section 3.5 names an outbox but does not specify its behavior. Offline correctness is where an offline-first app is actually won or lost.
+
+### 10.1 Outbox
+
+Local SQLite table, written in the same transaction as the optimistic local mutation:
+
+```sql
+CREATE TABLE outbox (
+  id              TEXT PRIMARY KEY,
+  kind            TEXT NOT NULL,
+  entity_id       TEXT NOT NULL,
+  payload         BLOB NOT NULL,
+  idempotency_key TEXT NOT NULL UNIQUE,
+  created_at      INTEGER NOT NULL,
+  attempts        INTEGER NOT NULL DEFAULT 0,
+  next_attempt_at INTEGER NOT NULL,
+  last_error      TEXT,
+  state           TEXT NOT NULL DEFAULT 'pending'
+);
+```
+
+Rules: the idempotency key is generated **once at enqueue** and reused across every retry — regenerating per attempt defeats the entire mechanism (2.8). Entries drain FIFO within an `entity_id` and may run in parallel across entities. RSVP entries collapse: a newer RSVP for the same event replaces the pending one rather than queueing behind it, since only the final state matters. Chat messages never collapse and carry a `client_msg_id` for server-side dedupe (migration 0005).
+
+### 10.2 Delta Sync
+
+Full-feed refetch on every foreground is unaffordable on metered Lagos data plans. Add:
+
+```
+GET /v1/sync?since={iso8601}&scope=events,rsvps
+→ { "server_time": "...", "events": [...], "rsvps": [...], "deleted": ["uuid"], "cursor": "..." }
+```
+
+Backed by `updated_at` indexes and a monotonic `version` per row (migration 0004). The client stores `server_time` from the response, never a device clock reading, and passes it as the next `since`. Soft deletes flow through `deleted[]` so the cache can prune.
+
+### 10.3 Conflict Resolution
+
+| Conflict | Resolution |
+|---|---|
+| Local RSVP vs newer server RSVP | Server wins on `version`; the user is told their change was superseded |
+| Queued RSVP, event cancelled meanwhile | Drop the write, surface "This event was cancelled" |
+| Queued Going, event filled meanwhile | Server returns `capacity_exceeded`; client auto-offers the waitlist rather than silently failing |
+| Queued message, sender removed from event | Drop, mark the message failed with a retry-disabled state |
+| Event edited locally by host while offline | Host edits are last-write-wins on `version` with a conflict banner; there is no field-level merge in MVP |
+| Duplicate delivery of the same message | Deduped by `(event_id, seq)` on read and `client_msg_id` on write |
+
+### 10.4 Triggers and Backoff
+
+Drain on: app foreground, `NWPathMonitor` transition to satisfied, successful auth refresh, and receipt of a silent push. Backoff is exponential from 1s, doubling to a 5-minute cap, with ±20% jitter so a whole city's worth of clients returning from a network outage does not arrive simultaneously. Entries exceeding 24 hours or 20 attempts move to `state='failed'` and surface in a "Couldn't send" list with a manual retry.
+
+### 10.5 Cache Policy
+
+Events and RSVPs are cached indefinitely and pruned 30 days after `ends_at`. Chat retains the most recent 200 messages per event. Cover images cache to disk with a 200MB LRU budget. Cached content older than 24 hours renders normally but the sync banner reports its age.
+
+---
+

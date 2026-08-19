@@ -79,3 +79,14 @@ pub fn sanitize_detail(detail: Option<&str>) -> Result<Option<String>, DomainErr
     Ok(Some(trimmed.to_owned()))
 }
 
+impl fmt::Display for ReportSubject {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
+impl fmt::Display for ReportReason {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}

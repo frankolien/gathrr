@@ -15,92 +15,61 @@ public struct HomeView: View {
     }
 
     public var body: some View {
-        GradientHeaderScreen {
-            header
-        } content: {
-            sheet
+        ScrollView {
+            VStack(alignment: .leading, spacing: Spacing.sectionGap) {
+                greeting
+                if model.isEmptyAfterLoading {
+                    emptyState
+                } else {
+                    thisWeekSection
+                    quickActions
+                    listSection("Hosting", events: model.hosting, filter: .hosting)
+                    listSection("Attending", events: model.attending, filter: .attending)
+                }
+            }
+            .padding(.horizontal, Spacing.gutter)
+            .padding(.top, Spacing.stackGap)
+            .padding(.bottom, Spacing.tabBarClearance)
         }
+        .scrollIndicators(.hidden)
+        .background(Palette.canvas.ignoresSafeArea())
         .refreshable { await model.load() }
         .task { await model.load() }
         .overlay(alignment: .top) { staleBanner }
     }
 
-    private var sheet: some View {
-        VStack(alignment: .leading, spacing: Spacing.sectionGap) {
-            if model.isEmptyAfterLoading {
-                emptyState
-            } else {
-                thisWeekSection
-                quickActions
-                listSection("Hosting", events: model.hosting, filter: .hosting)
-                listSection("Attending", events: model.attending, filter: .attending)
+    private var greeting: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 1) {
+                EyebrowText(model.greeting())
+                Text(accountName)
+                    .font(Typography.titleM)
+                    .foregroundStyle(Palette.textPrimary)
             }
+            Spacer()
+            Button {
+                router.push(.notifications)
+            } label: {
+                Avatar(name: accountName)
+                    .overlay(alignment: .topTrailing) {
+                        if model.hasAnyContent {
+                            Circle()
+                                .fill(Palette.statusDeclined)
+                                .frame(width: 9, height: 9)
+                                .overlay { Circle().strokeBorder(Palette.canvas, lineWidth: 1.5) }
+                                .offset(x: 1, y: -1)
+                        }
+                    }
+            }
+            .accessibilityLabel("Notifications")
         }
-        .padding(.horizontal, Spacing.gutter)
-        .padding(.top, Spacing.gutter)
-        .padding(.bottom, Spacing.tabBarClearance)
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: Spacing.gutter) {
-            HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(model.greeting().uppercased())
-                        .font(Typography.eyebrow)
-                        .tracking(0.6)
-                        .foregroundStyle(Palette.onHeaderMuted)
-                    Text(accountName)
-                        .font(Typography.titleL)
-                        .foregroundStyle(Palette.onHeader)
-                }
-                Spacer()
-                Button {
-                    router.push(.notifications)
-                } label: {
-                    Image(systemName: "bell")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(Palette.onHeader)
-                        .frame(width: 40, height: 40)
-                        .background(Palette.headerGlass, in: RoundedRectangle(cornerRadius: Radius.thumb, style: .continuous))
-                }
-                .accessibilityLabel("Notifications")
-            }
-
-            WeekStrip(days: model.week())
-
-            HStack(alignment: .center) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text("\(model.plannedCount())")
-                        .font(.system(size: 46, weight: .medium, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(Palette.onHeader)
-                    Text(model.plannedCount() == 1 ? "event" : "events")
-                        .font(Typography.subhead)
-                        .foregroundStyle(Palette.onHeaderMuted)
-                }
-                .accessibilityElement(children: .combine)
-                Spacer()
-                if model.plannedCount() > 0 {
-                    ActivePill("Active")
-                }
-            }
-
-            HStack(spacing: 0) {
-                HeaderStat(value: model.todayCount(), label: "Today")
-                HeaderStat(value: model.upcomingCount(), label: "Upcoming")
-                HeaderStat(value: model.hostingCount, label: "Hosting")
-            }
-        }
-        .padding(.horizontal, Spacing.gutter)
-        .padding(.top, Spacing.stackGap)
-        .padding(.bottom, Spacing.sectionGap)
     }
 
     @ViewBuilder
     private var thisWeekSection: some View {
         if !model.thisWeek.isEmpty {
             VStack(alignment: .leading, spacing: Spacing.stackGap) {
-                SectionHeader("Upcoming", actionTitle: "See all") {
+                SectionHeader("This week", actionTitle: "See all") {
                     router.push(.feed(.thisWeek))
                 }
                 ScrollView(.horizontal) {
@@ -128,6 +97,11 @@ public struct HomeView: View {
                 }
                 .scrollTargetBehavior(.viewAligned)
                 .scrollIndicators(.hidden)
+
+                if model.thisWeek.count > 1 {
+                    PageDots(count: model.thisWeek.count, selection: 0)
+                        .frame(maxWidth: .infinity)
+                }
             }
         }
     }
@@ -194,9 +168,8 @@ public struct HomeView: View {
                 .font(Typography.footnote)
                 .foregroundStyle(Palette.textSecondary)
                 .padding(.horizontal, Spacing.stackGap)
-                .padding(.vertical, 8)
-                .background(Palette.surfaceInset)
-                .clipShape(Capsule())
+                .padding(.vertical, 6)
+                .background(Palette.surfaceInset, in: Capsule())
                 .padding(.top, Spacing.unit)
         }
     }

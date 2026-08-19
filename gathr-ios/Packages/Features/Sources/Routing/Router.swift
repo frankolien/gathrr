@@ -1,3 +1,4 @@
+import DesignSystem
 import Foundation
 import Models
 import Observation
@@ -21,11 +22,24 @@ public enum AppTab: String, Hashable, Sendable, CaseIterable {
 
     public var symbol: String {
         switch self {
-        case .home: "house.fill"
+        case .home: "house"
         case .explore: "safari"
         case .calendar: "calendar"
         case .profile: "person"
         }
+    }
+
+    public var selectedSymbol: String {
+        switch self {
+        case .home: "house.fill"
+        case .explore: "safari.fill"
+        case .calendar: "calendar"
+        case .profile: "person.fill"
+        }
+    }
+
+    public var item: TabItem {
+        TabItem(id: rawValue, symbol: symbol, selectedSymbol: selectedSymbol, title: title)
     }
 
     public var title: String {

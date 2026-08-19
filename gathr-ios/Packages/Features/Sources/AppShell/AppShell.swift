@@ -1,3 +1,4 @@
+import Calendar
 import CreateEvent
 import DesignSystem
 import EventDetail
@@ -14,7 +15,7 @@ public struct FeatureFlags: Sendable {
     public var exploreTab: Bool
     public var calendarTab: Bool
 
-    public init(exploreTab: Bool = false, calendarTab: Bool = false) {
+    public init(exploreTab: Bool = true, calendarTab: Bool = true) {
         self.exploreTab = exploreTab
         self.calendarTab = calendarTab
     }
@@ -25,6 +26,10 @@ public struct FeatureFlags: Sendable {
         case .calendar: calendarTab
         case .home, .profile: true
         }
+    }
+
+    public var tabs: [AppTab] {
+        AppTab.allCases.filter(isEnabled)
     }
 }
 
@@ -60,18 +65,12 @@ public struct AppShell: View {
     }
 
     public var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            NavigationStack(path: Binding(get: { router.path }, set: { router.path = $0 })) {
-                tabContent
-                    .safeAreaInset(edge: .bottom) { tabBar }
-                    .navigationDestination(for: Route.self) { route in
-                        destination(route)
-                    }
-            }
-
-            if selectedTab == .home, router.path.isEmpty {
-                floatingActionButton
-            }
+        NavigationStack(path: Binding(get: { router.path }, set: { router.path = $0 })) {
+            tabContent
+                .safeAreaInset(edge: .bottom) { floatingBar }
+                .navigationDestination(for: Route.self) { route in
+                    destination(route)
+                }
         }
         .sheet(isPresented: $isCreating) {
             CreateEventView(model: CreateEventModel(service: events)) { event in
@@ -103,7 +102,11 @@ public struct AppShell: View {
         case .explore:
             ContentUnavailableView("Explore is coming soon", systemImage: "safari")
         case .calendar:
-            ContentUnavailableView("Calendar is coming soon", systemImage: "calendar")
+            CalendarView(
+                model: home,
+                router: router,
+                accountName: account?.displayName ?? "there"
+            )
         case .profile:
             ProfileView(model: ProfileModel(auth: auth, account: account), onSignOut: onSignOut)
         }
@@ -123,40 +126,20 @@ public struct AppShell: View {
         }
     }
 
-    private var tabBar: some View {
-        HStack {
-            ForEach(AppTab.allCases.filter(flags.isEnabled), id: \.self) { tab in
-                Button {
-                    selectedTab = tab
+    private var floatingBar: some View {
+        LiquidTabBar(
+            items: flags.tabs.map(\.item),
+            selection: Binding(
+                get: { selectedTab.rawValue },
+                set: { raw in
+                    selectedTab = AppTab(rawValue: raw) ?? .home
                     router.popToRoot()
-                } label: {
-                    Image(systemName: tab.symbol)
-                        .font(.system(size: 20))
-                        .foregroundStyle(selectedTab == tab ? Palette.accent : Palette.textTertiary)
-                        .frame(maxWidth: .infinity)
-                        .minimumHitTarget()
                 }
-                .accessibilityLabel(tab.title)
-            }
+            )
+        ) {
+            isCreating = true
         }
-        .padding(.top, Spacing.stackGap)
-        .background(Palette.surface)
-        .overlay(alignment: .top) { Rectangle().fill(Palette.separator).frame(height: 0.5) }
+        .padding(.bottom, Spacing.unit)
     }
 
-    private var floatingActionButton: some View {
-        Button {
-            isCreating = true
-        } label: {
-            Image(systemName: "plus")
-                .font(.system(size: 24, weight: .semibold))
-                .foregroundStyle(Palette.onAccent)
-                .frame(width: 56, height: 56)
-                .background(Palette.accent)
-                .clipShape(Circle())
-        }
-        .accessibilityLabel("New event")
-        .padding(.trailing, Spacing.gutter)
-        .padding(.bottom, Spacing.stackGap)
-    }
 }

@@ -1255,3 +1255,35 @@ Ship `en-NG` first with all strings in a catalog from day one — retrofitting h
 
 ---
 
+## 16. Analytics and Instrumentation
+
+### 16.1 Event Taxonomy
+
+Every success metric in 1.6 needs a named event or it cannot be measured.
+
+| Event | Properties | Feeds |
+|---|---|---|
+| `onboarding_completed` | `skipped` | Activation |
+| `auth_completed` | `method`, `was_deferred` | Deferred-auth validation |
+| `event_create_started` | `from_template` | Time-to-create timer start |
+| `event_published` | `duration_ms`, `has_cover`, `has_capacity`, `category` | **Time-to-create < 2 min** |
+| `invite_shared` | `channel`, `code_type` | Channel mix (14.5) |
+| `invite_opened` | `surface` (app/web), `source` | **Conversion denominator** |
+| `rsvp_submitted` | `status`, `plus_ones`, `is_guest`, `surface`, `latency_ms` | **Conversion numerator** |
+| `rsvp_blocked_capacity` | `event_id` | Waitlist demand |
+| `chat_message_sent` | `event_id`, `offline_queued` | Retention hook (V1) |
+| `reminder_delivered` / `reminder_opened` | `kind` | Reminder efficacy |
+| `checkin_recorded` | `method` | **RSVP-to-attendance** |
+| `sync_conflict` | `kind`, `resolution` | Offline correctness |
+| `offline_write_queued` / `_failed` | `kind`, `attempts` | Offline health |
+
+### 16.2 Funnels and Server Metrics
+
+Primary funnel: `invite_shared → invite_opened → rsvp_submitted`, segmented by `surface`. If web RSVP does not outperform app RSVP on conversion, the Section 9 thesis is wrong and should be revisited with data.
+
+Prometheus, beyond 2.12: RSVP capacity-rejection rate, waitlist depth, reminder job lag (`now − run_at` at claim time), APNs success rate by type, SMS delivery rate by provider and network, WebSocket concurrent connections and reconnect rate, sync payload bytes per client per day.
+
+Analytics identifiers are pseudonymous and stripped at 90 days (13.3). No third-party SDK receives a phone number.
+
+---
+

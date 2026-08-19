@@ -20,3 +20,31 @@ public enum Radius {
     public static let thumb: CGFloat = 10
 }
 
+public enum Elevation {
+    public static func card() -> some ViewModifier { Shadow(y: 4, blur: 16, opacity: 0.06) }
+    public static func raised() -> some ViewModifier { Shadow(y: 8, blur: 24, opacity: 0.10) }
+
+    struct Shadow: ViewModifier {
+        let y: CGFloat
+        let blur: CGFloat
+        let opacity: Double
+
+        func body(content: Content) -> some View {
+            content.shadow(color: .black.opacity(opacity), radius: blur / 2, x: 0, y: y)
+        }
+    }
+}
+
+extension View {
+    public func cardElevation() -> some View {
+        modifier(Elevation.card())
+    }
+
+    public func raisedElevation() -> some View {
+        modifier(Elevation.raised())
+    }
+
+    public func minimumHitTarget() -> some View {
+        frame(minWidth: Spacing.minimumTarget, minHeight: Spacing.minimumTarget)
+    }
+}

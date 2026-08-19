@@ -48,3 +48,140 @@ struct Alert<'a> {
     body: &'a str,
 }
 
+#[derive(Serialize)]
+struct ProviderClaims<'a> {
+    iss: &'a str,
+    iat: i64,
+}
+
+struct CachedToken {
+    value: String,
+    issued_at: OffsetDateTime,
+}
+
+pub struct Apns {
+    team_id: String,
+    key_id: String,
+    key: EncodingKey,
+    topic: String,
+    client: reqwest::Client,
+    token: Mutex<Option<CachedToken>>,
+}
+
+impl Apns {
+    pub fn new(
+        team_id: String,
+        key_id: String,
+        private_key_pem: &str,
+        topic: String,
+    ) -> Option<Result<Self, PushError>> {
+        let configured = [&team_id, &key_id, &topic]
+            .iter()
+            .all(|value| !value.trim().is_empty())
+            && !private_key_pem.trim().is_empty();
+
+        if !configured {
+            return None;
+        }
+
+        Some(
+            EncodingKey::from_ec_pem(private_key_pem.as_bytes())
+                .map_err(|error| PushError::UnusableKey(error.to_string()))
+                .map(|key| Self {
+                    team_id,
+                    key_id,
+                    key,
+                    topic,
+                    client: reqwest::Client::new(),
+                    token: Mutex::new(None),
+                }),
+        )
+    }
+
+    pub async fn send(&self, notification: &Notification) -> Result<(), PushError> {
+        let host = if notification.environment == "production" {
+            PRODUCTION_HOST
+        } else {
+            SANDBOX_HOST
+        };
+
+        let response = self
+            .client
+            .post(format!("{host}/3/device/{}", notification.device_token))
+            .header(
+                "authorization",
+                format!("bearer {}", self.provider_token()?),
+            )
+            .header("apns-topic", &self.topic)
+            .header("apns-push-type", "alert")
+            .json(&Payload {
+                aps: Aps {
+                    alert: Alert {
+                        title: &notification.title,
+                        body: &notification.body,
+                    },
+                    sound: "default",
+                    thread_id: &notification.thread_id,
+                },
+                event_id: &notification.thread_id,
+            })
+            .send()
+            .await
+            .map_err(|error| PushError::Unreachable(error.to_string()))?;
+
+        if response.status().is_success() {
+            return Ok(());
+        }
+
+        let status = response.status();
+        let reason = response
+            .json::<serde_json::Value>()
+            .await
+            .ok()
+            .and_then(|body| {
+                body.get("reason")
+                    .and_then(|r| r.as_str())
+                    .map(str::to_owned)
+            })
+            .unwrap_or_else(|| status.to_string());
+
+        Err(PushError::Rejected {
+            expired: matches!(reason.as_str(), "BadDeviceToken" | "Unregistered"),
+            reason,
+        })
+    }
+
+    fn provider_token(&self) -> Result<String, PushError> {
+        let mut cached = self.token.lock().unwrap_or_else(|poisoned| {
+            self.token.clear_poison();
+            poisoned.into_inner()
+        });
+
+        let now = OffsetDateTime::now_utc();
+        if let Some(token) = cached.as_ref() {
+            if now - token.issued_at < Duration::minutes(TOKEN_LIFETIME_MINUTES) {
+                return Ok(token.value.clone());
+            }
+        }
+
+        let mut header = Header::new(Algorithm::ES256);
+        header.kid = Some(self.key_id.clone());
+
+        let value = jsonwebtoken::encode(
+            &header,
+            &ProviderClaims {
+                iss: &self.team_id,
+                iat: now.unix_timestamp(),
+            },
+            &self.key,
+        )
+        .map_err(|error| PushError::UnusableKey(error.to_string()))?;
+
+        *cached = Some(CachedToken {
+            value: value.clone(),
+            issued_at: now,
+        });
+        Ok(value)
+    }
+}
+

@@ -1355,3 +1355,126 @@ A change is done when every one of these is true. CI enforces them; none is a ma
 
 ---
 
+## 21. Migration Ledger
+
+Ordered `sqlx` migrations. `0001` is the DDL in Section 2.10; the rest are introduced by Sections 9–13.
+
+**0001_init** — Section 2.10 as written, plus: seed `event_counters` in the same transaction as every `INSERT INTO events` (4.6), and `events.max_plus_ones INTEGER NOT NULL DEFAULT 2`.
+
+**0002_guest_identity** (Section 9.2)
+```sql
+ALTER TABLE users ADD COLUMN is_guest BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE users ADD COLUMN claimed_at TIMESTAMPTZ;
+ALTER TABLE users DROP CONSTRAINT users_phone_key;
+ALTER TABLE users DROP CONSTRAINT users_email_key;
+CREATE UNIQUE INDEX users_phone_claimed_key ON users(phone) WHERE is_guest = false AND phone IS NOT NULL;
+CREATE UNIQUE INDEX users_email_claimed_key ON users(email) WHERE is_guest = false AND email IS NOT NULL;
+CREATE INDEX users_guest_phone_idx ON users(phone) WHERE is_guest = true;
+
+CREATE TABLE guest_sessions (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash  TEXT NOT NULL UNIQUE,
+  invite_id   UUID REFERENCES invites(id),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at  TIMESTAMPTZ NOT NULL
+);
+```
+
+**0003_auth_hardening** (Sections 2.3, 13.1 — the original spec describes both tables in prose but ships no DDL)
+```sql
+CREATE TABLE otp_codes (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  destination TEXT NOT NULL,
+  channel     TEXT NOT NULL,
+  code_hash   TEXT NOT NULL,
+  attempts    INTEGER NOT NULL DEFAULT 0,
+  consumed_at TIMESTAMPTZ,
+  expires_at  TIMESTAMPTZ NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX otp_destination_idx ON otp_codes(destination, created_at DESC);
+
+CREATE TABLE refresh_tokens (
+  jti        UUID PRIMARY KEY,
+  family_id  UUID NOT NULL,
+  user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL,
+  used_at    TIMESTAMPTZ,
+  revoked_at TIMESTAMPTZ,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX refresh_family_idx ON refresh_tokens(family_id);
+```
+
+**0004_sync_and_waitlist** (Sections 4.1, 10.2)
+```sql
+ALTER TABLE events ADD COLUMN version    BIGINT NOT NULL DEFAULT 1;
+ALTER TABLE events ADD COLUMN deleted_at TIMESTAMPTZ;
+ALTER TABLE rsvps  ADD COLUMN version    BIGINT NOT NULL DEFAULT 1;
+ALTER TABLE rsvps  ADD COLUMN waitlisted_at TIMESTAMPTZ;
+CREATE INDEX events_updated_at_idx ON events(updated_at);
+CREATE INDEX rsvps_updated_at_idx  ON rsvps(updated_at);
+CREATE INDEX rsvps_waitlist_idx    ON rsvps(event_id, waitlisted_at) WHERE status = 'waitlisted';
+```
+`version` and `updated_at` bump together in a `BEFORE UPDATE` trigger so no handler can forget.
+
+**0005_moderation_and_chat** (Sections 10.1, 13.1)
+```sql
+ALTER TABLE messages ADD COLUMN deleted_at    TIMESTAMPTZ;
+ALTER TABLE messages ADD COLUMN client_msg_id UUID;
+CREATE UNIQUE INDEX messages_client_idx ON messages(event_id, sender_id, client_msg_id)
+  WHERE client_msg_id IS NOT NULL;
+
+CREATE TABLE event_mutes (
+  event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  user_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  muted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (event_id, user_id)
+);
+
+CREATE TABLE blocks (
+  blocker_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  blocked_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (blocker_id, blocked_id)
+);
+
+CREATE TABLE reports (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  reporter_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  subject_type TEXT NOT NULL,
+  subject_id  UUID NOT NULL,
+  reason      TEXT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+**0006_attendance** (Section 8.10)
+```sql
+CREATE TABLE attendance (
+  event_id      UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  checked_in_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  checked_in_by UUID REFERENCES users(id),
+  PRIMARY KEY (event_id, user_id)
+);
+```
+
+**0007_cohosts** (V1, per Apple Invites parity — up to five co-hosts)
+```sql
+CREATE TABLE event_hosts (
+  event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  user_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role     TEXT NOT NULL DEFAULT 'cohost',
+  added_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (event_id, user_id)
+);
+```
+Once this lands, every `host_id = $user` authorization check becomes a membership check against `event_hosts`. Write the authorization as a single `can_manage(event, user)` function in the domain crate from day one so this is a one-line change rather than a grep.
+
+---
+
+---
+

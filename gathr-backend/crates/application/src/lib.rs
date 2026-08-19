@@ -3,6 +3,7 @@ pub mod activity;
 pub mod auth;
 pub mod error;
 pub mod events;
+pub mod hosts;
 pub mod invites;
 pub mod media;
 pub mod messages;

@@ -92,3 +92,162 @@ pub fn submit(
     }
 }
 
+pub fn promote_from_waitlist(
+    current: RsvpStatus,
+    plus_ones: i32,
+    capacity: CapacityContext,
+) -> Result<RsvpOutcome, DomainError> {
+    if current != RsvpStatus::Waitlisted {
+        return Err(DomainError::IllegalRsvpTransition {
+            from: current,
+            to: RsvpStatus::Going,
+        });
+    }
+    match capacity.evaluate(plus_ones)? {
+        Admission::Admitted => Ok(RsvpOutcome {
+            status: RsvpStatus::Going,
+            plus_ones,
+            entered_waitlist: false,
+        }),
+        Admission::Full { seats_short } => Err(DomainError::CapacityExceeded { seats_short }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn open() -> CapacityContext {
+        CapacityContext::unlimited()
+    }
+
+    fn full() -> CapacityContext {
+        CapacityContext {
+            capacity: Some(2),
+            seats_held_excluding_actor: 2,
+            max_plus_ones: 2,
+        }
+    }
+
+    fn request(status: RsvpStatus) -> RsvpRequest {
+        RsvpRequest {
+            status,
+            plus_ones: 0,
+            accept_waitlist: false,
+        }
+    }
+
+    #[test]
+    fn a_first_time_guest_can_go() {
+        let outcome = submit(None, request(RsvpStatus::Going), open()).unwrap();
+        assert_eq!(outcome.status, RsvpStatus::Going);
+    }
+
+    #[test]
+    fn the_three_guest_statuses_are_freely_interchangeable() {
+        for from in [RsvpStatus::Going, RsvpStatus::Maybe, RsvpStatus::Declined] {
+            for to in [RsvpStatus::Going, RsvpStatus::Maybe, RsvpStatus::Declined] {
+                let outcome = submit(Some(from), request(to), open()).unwrap();
+                assert_eq!(outcome.status, to, "{from} -> {to} should be allowed");
+            }
+        }
+    }
+
+    #[test]
+    fn a_guest_cannot_place_themselves_on_the_waitlist() {
+        let error = submit(None, request(RsvpStatus::Waitlisted), open()).unwrap_err();
+        assert!(matches!(error, DomainError::IllegalRsvpTransition { .. }));
+    }
+
+    #[test]
+    fn a_guest_cannot_return_themselves_to_invited() {
+        let error = submit(
+            Some(RsvpStatus::Going),
+            request(RsvpStatus::Invited),
+            open(),
+        )
+        .unwrap_err();
+        assert!(matches!(error, DomainError::IllegalRsvpTransition { .. }));
+    }
+
+    #[test]
+    fn a_full_event_rejects_going_rather_than_silently_waitlisting() {
+        let error = submit(None, request(RsvpStatus::Going), full()).unwrap_err();
+        assert_eq!(error, DomainError::CapacityExceeded { seats_short: 1 });
+    }
+
+    #[test]
+    fn a_full_event_waitlists_only_when_the_guest_opted_in() {
+        let outcome = submit(
+            None,
+            RsvpRequest {
+                status: RsvpStatus::Going,
+                plus_ones: 0,
+                accept_waitlist: true,
+            },
+            full(),
+        )
+        .unwrap();
+        assert_eq!(outcome.status, RsvpStatus::Waitlisted);
+        assert!(outcome.entered_waitlist);
+    }
+
+    #[test]
+    fn re_confirming_a_waitlist_place_does_not_move_the_guest_to_the_back() {
+        let outcome = submit(
+            Some(RsvpStatus::Waitlisted),
+            RsvpRequest {
+                status: RsvpStatus::Going,
+                plus_ones: 0,
+                accept_waitlist: true,
+            },
+            full(),
+        )
+        .unwrap();
+        assert!(!outcome.entered_waitlist);
+    }
+
+    #[test]
+    fn declining_is_always_possible_even_when_the_event_is_full() {
+        let outcome = submit(
+            Some(RsvpStatus::Waitlisted),
+            request(RsvpStatus::Declined),
+            full(),
+        )
+        .unwrap();
+        assert_eq!(outcome.status, RsvpStatus::Declined);
+    }
+
+    #[test]
+    fn promotion_requires_a_waitlisted_guest_and_a_free_seat() {
+        let freed = CapacityContext {
+            capacity: Some(2),
+            seats_held_excluding_actor: 1,
+            max_plus_ones: 2,
+        };
+        assert_eq!(
+            promote_from_waitlist(RsvpStatus::Waitlisted, 0, freed)
+                .unwrap()
+                .status,
+            RsvpStatus::Going
+        );
+        assert_eq!(
+            promote_from_waitlist(RsvpStatus::Waitlisted, 0, full()).unwrap_err(),
+            DomainError::CapacityExceeded { seats_short: 1 }
+        );
+        assert!(promote_from_waitlist(RsvpStatus::Declined, 0, freed).is_err());
+    }
+
+    #[test]
+    fn only_going_holds_seats() {
+        assert!(RsvpStatus::Going.holds_seats());
+        for status in [
+            RsvpStatus::Invited,
+            RsvpStatus::Maybe,
+            RsvpStatus::Declined,
+            RsvpStatus::Waitlisted,
+        ] {
+            assert!(!status.holds_seats());
+        }
+    }
+}

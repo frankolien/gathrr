@@ -524,3 +524,13 @@ Wrapped in a transaction that first locks the event row and checks the capacity 
 - Every mutating endpoint honors Idempotency-Key. Every capacity-affecting write uses a transaction with row locks.
 - `tracing` spans on every handler. No println.
 
+## Swift conventions
+- Swift 6, strict concurrency complete, zero concurrency warnings. iOS 17.0 deployment target (D4); gate newer APIs with @available.
+- @Observable for models with logic; no ObservableObject. Value types Sendable.
+- Typed errors (enums) at service boundaries. No force-unwraps in non-test code.
+- Feature = SPM package. Views depend on protocols injected via environment.
+- Networking and persistence in actors. Views never touch URLSession/DB directly.
+- No literal colors, fonts, radii, or spacing outside DesignSystem. Section 7 tokens only.
+- No hardcoded user-facing strings. String catalog from the first commit.
+- Dates formatted with Date.FormatStyle in the event's timezone. Never a format string.
+

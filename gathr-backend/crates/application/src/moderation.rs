@@ -61,3 +61,13 @@ pub async fn block(db: &Db, blocker_id: Uuid, blocked_id: Uuid) -> Result<(), Ap
     Ok(moderation::block(db, blocker_id, blocked_id).await?)
 }
 
+pub async fn unblock(db: &Db, blocker_id: Uuid, blocked_id: Uuid) -> Result<(), AppError> {
+    moderation::unblock(db, blocker_id, blocked_id)
+        .await?
+        .then_some(())
+        .ok_or(AppError::NotFound)
+}
+
+pub async fn blocked(db: &Db, blocker_id: Uuid) -> Result<Vec<Uuid>, AppError> {
+    Ok(moderation::blocked_by(db, blocker_id).await?)
+}

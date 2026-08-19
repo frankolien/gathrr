@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT d.id, d.user_id, d.apns_token, d.environment\n           FROM devices d\n           WHERE d.user_id IN (\n             SELECT r.user_id FROM rsvps r\n             WHERE r.event_id = $1 AND r.status IN ('going', 'maybe')\n             UNION\n             SELECT e.host_id FROM events e WHERE e.id = $1\n           )\n           AND NOT EXISTS (\n             SELECT 1 FROM event_mutes m\n             WHERE m.user_id = d.user_id AND m.event_id = $1\n           )",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "apns_token",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "environment",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "f67f330fa308e8e688eb787bc83582e72df5bbd4355599eb85c883abbb4a3abe"
+}

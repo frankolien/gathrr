@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE reminder_jobs SET status = 'cancelled'\n           WHERE event_id = $1 AND status = 'pending'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "54d301c4d677b571662b1d03f26f37cfcfc96acbedaee76957bf601ae6fabd7e"
+}

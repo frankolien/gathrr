@@ -1,0 +1,42 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO devices (user_id, apns_token, environment)\n           VALUES ($1, $2, $3)\n           ON CONFLICT (apns_token)\n           DO UPDATE SET user_id = $1, environment = $3, last_seen_at = now()\n           RETURNING id, user_id, apns_token, environment",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "apns_token",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "environment",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "372135b0fa73cda6982ba08478f1f4178cc9645f9352cfa9ecf4d76f96af270b"
+}

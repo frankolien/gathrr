@@ -1,0 +1,61 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH inserted AS (\n             INSERT INTO messages (event_id, sender_id, seq, body)\n             VALUES ($1, $2, $3, $4)\n             RETURNING id, event_id, sender_id, seq, body, created_at\n           )\n           SELECT inserted.id, inserted.event_id, inserted.sender_id,\n                  u.display_name AS sender_display_name,\n                  inserted.seq, inserted.body, inserted.created_at\n           FROM inserted JOIN users u ON u.id = inserted.sender_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "event_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "sender_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "sender_display_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "seq",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "body",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "a82269fd2e2159fb175a1da8af58aac8c557781c35af13953bcd0c33897ff1fb"
+}

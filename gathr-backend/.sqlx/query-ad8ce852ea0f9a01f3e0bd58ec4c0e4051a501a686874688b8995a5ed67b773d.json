@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO event_counters (event_id, last_seq) VALUES ($1, 0)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ad8ce852ea0f9a01f3e0bd58ec4c0e4051a501a686874688b8995a5ed67b773d"
+}

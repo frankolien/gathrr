@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COALESCE(SUM(1 + plus_ones), 0)::int AS \"seats!\"\n           FROM rsvps\n           WHERE event_id = $1 AND status = 'going' AND user_id <> $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "seats!",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "1c56b0fc2b7964a6a88947bc1546d559e5cbaae31747e2d8b491ad568e4e9d52"
+}

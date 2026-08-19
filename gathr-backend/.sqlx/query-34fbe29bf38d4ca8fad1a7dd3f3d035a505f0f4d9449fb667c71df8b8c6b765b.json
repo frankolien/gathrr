@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO event_counters (event_id, last_seq)\n           VALUES ($1, 1)\n           ON CONFLICT (event_id)\n           DO UPDATE SET last_seq = event_counters.last_seq + 1\n           RETURNING last_seq",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "last_seq",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "34fbe29bf38d4ca8fad1a7dd3f3d035a505f0f4d9449fb667c71df8b8c6b765b"
+}

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO event_mutes (user_id, event_id) VALUES ($1, $2)\n               ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c1ceee8ddbcbe5d92498177e87ba75edb2c5f8f81ac0ee0ef68f13d592d5be7f"
+}

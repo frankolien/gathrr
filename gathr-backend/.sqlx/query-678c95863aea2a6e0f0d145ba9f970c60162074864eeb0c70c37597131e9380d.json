@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE otp_challenges SET consumed_at = now()\n           WHERE channel = ($1::text)::otp_channel\n             AND destination = $2\n             AND consumed_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "678c95863aea2a6e0f0d145ba9f970c60162074864eeb0c70c37597131e9380d"
+}

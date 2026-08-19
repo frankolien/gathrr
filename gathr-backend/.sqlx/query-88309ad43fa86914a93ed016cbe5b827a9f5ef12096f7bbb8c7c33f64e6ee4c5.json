@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO events (host_id, title, starts_at, status)\n           VALUES ($1, 'Group Therapy', $2, 'published') RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "88309ad43fa86914a93ed016cbe5b827a9f5ef12096f7bbb8c7c33f64e6ee4c5"
+}

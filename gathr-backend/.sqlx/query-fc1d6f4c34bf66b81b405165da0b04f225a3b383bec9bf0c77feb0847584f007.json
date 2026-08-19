@@ -1,0 +1,101 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE events SET\n             title          = COALESCE($2, title),\n             category       = COALESCE($3, category),\n             description    = CASE WHEN $4 THEN $5 ELSE description END,\n             location_name  = CASE WHEN $6 THEN $7 ELSE location_name END,\n             starts_at      = COALESCE($8, starts_at),\n             ends_at        = CASE WHEN $9 THEN $10 ELSE ends_at END,\n             timezone       = COALESCE($11, timezone),\n             capacity       = CASE WHEN $12 THEN $13 ELSE capacity END,\n             max_plus_ones  = COALESCE($14, max_plus_ones)\n           WHERE id = $1\n           RETURNING id, host_id, title, category, description, location_name,\n                     starts_at, ends_at, timezone, capacity, max_plus_ones,\n                     status::text AS \"status!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "host_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "title",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "category",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "location_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "starts_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 7,
+        "name": "ends_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "timezone",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 9,
+        "name": "capacity",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 10,
+        "name": "max_plus_ones",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 11,
+        "name": "status!",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Bool",
+        "Text",
+        "Bool",
+        "Text",
+        "Timestamptz",
+        "Bool",
+        "Timestamptz",
+        "Text",
+        "Bool",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+      null
+    ]
+  },
+  "hash": "fc1d6f4c34bf66b81b405165da0b04f225a3b383bec9bf0c77feb0847584f007"
+}

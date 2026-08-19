@@ -1,0 +1,50 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE users SET\n             display_name    = COALESCE($2, display_name),\n             bio             = CASE WHEN $3 THEN $4 ELSE bio END,\n             avatar_media_id = COALESCE($5, avatar_media_id)\n           WHERE id = $1\n           RETURNING id, display_name, phone, is_guest, bio",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "display_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "phone",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "is_guest",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 4,
+        "name": "bio",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Bool",
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "38cc85b5ecf9f0b8bafb62ca40140e4ccd505a36066908b684d1a6f3379be970"
+}

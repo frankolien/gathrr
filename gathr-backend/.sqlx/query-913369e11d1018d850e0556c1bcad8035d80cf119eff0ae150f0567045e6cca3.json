@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT request_hash, response_code, response_body\n           FROM idempotency_keys\n           WHERE key = $1 AND user_id = $2 AND created_at > now() - interval '24 hours'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_hash",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "response_code",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "response_body",
+        "type_info": "Jsonb"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "913369e11d1018d850e0556c1bcad8035d80cf119eff0ae150f0567045e6cca3"
+}

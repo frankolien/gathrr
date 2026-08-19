@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO identities (user_id, provider, subject, email)\n           VALUES ($1, ($2::text)::identity_provider, $3, $4)\n           ON CONFLICT (provider, subject) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "988fd739aeb653d972112474b497408429fdd0b67cc382c877d1a118bed8b661"
+}

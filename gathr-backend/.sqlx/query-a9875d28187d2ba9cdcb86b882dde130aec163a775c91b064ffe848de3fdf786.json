@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE reminder_jobs SET status = 'running', locked_at = now()\n           WHERE id IN (\n             SELECT id FROM reminder_jobs\n             WHERE status = 'pending' AND run_at <= $1\n             ORDER BY run_at\n             FOR UPDATE SKIP LOCKED\n             LIMIT $2\n           )\n           RETURNING id, event_id, kind, attempts",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "event_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "kind",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "attempts",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "a9875d28187d2ba9cdcb86b882dde130aec163a775c91b064ffe848de3fdf786"
+}

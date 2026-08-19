@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COUNT(*)::int AS \"count!\" FROM rsvps\n           WHERE event_id = $1 AND status = 'going'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "43fe1f5b0fa2915d0bfa9644a4240cbc0a61318b592888fc3b02d4fbfc616151"
+}

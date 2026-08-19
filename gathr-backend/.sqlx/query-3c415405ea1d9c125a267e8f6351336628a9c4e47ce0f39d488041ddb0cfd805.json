@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT kind FROM reminder_jobs\n           WHERE event_id = $1 AND status = 'pending' ORDER BY run_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kind",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "3c415405ea1d9c125a267e8f6351336628a9c4e47ce0f39d488041ddb0cfd805"
+}

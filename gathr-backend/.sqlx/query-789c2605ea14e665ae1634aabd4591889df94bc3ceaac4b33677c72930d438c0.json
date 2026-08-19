@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE reminder_jobs\n           SET attempts = attempts + 1,\n               locked_at = NULL,\n               last_error = $2,\n               status = CASE WHEN attempts + 1 >= $3 THEN 'failed' ELSE 'pending' END\n           WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "789c2605ea14e665ae1634aabd4591889df94bc3ceaac4b33677c72930d438c0"
+}

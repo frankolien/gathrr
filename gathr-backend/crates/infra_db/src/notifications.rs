@@ -140,3 +140,17 @@ pub async fn unread_count(db: &Db, user_id: Uuid) -> Result<i64, DbError> {
     .map_err(DbError::from_sqlx)
 }
 
+pub async fn mark_read(db: &Db, user_id: Uuid, ids: &[Uuid]) -> Result<u64, DbError> {
+    sqlx::query!(
+        r#"UPDATE notifications SET read_at = now()
+           WHERE user_id = $1
+             AND read_at IS NULL
+             AND (cardinality($2::uuid[]) = 0 OR id = ANY($2))"#,
+        user_id,
+        ids
+    )
+    .execute(db)
+    .await
+    .map(|done| done.rows_affected())
+    .map_err(DbError::from_sqlx)
+}

@@ -62,3 +62,8 @@ RSVPs at a capacity-5 event and asserts exactly 5 are admitted.
 Crates from the specification that hold no code yet (`infra_storage`, `infra_push`, `worker`) are
 deliberately absent rather than empty — see the folder-structure rule in `CLAUDE.md`.
 
+## Auth
+
+`POST /v1/auth/dev` exists so the loop can be exercised without Apple credentials. It is gated by
+`GATHR_ALLOW_DEV_AUTH` and returns 403 when unset — it must stay off outside development. Sign in
+with Apple and phone OTP replace it in Phase 1.

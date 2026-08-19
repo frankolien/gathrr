@@ -129,6 +129,7 @@ pub async fn erase(state: web::Data<AppState>, user: AuthUser) -> Result<HttpRes
 
     Ok(HttpResponse::Ok().json(ErasureResponse {
         deleted: true,
+        events_handed_over: erasure.events_handed_over,
         events_cancelled: erasure.events_cancelled,
         messages_redacted: erasure.messages_redacted,
     }))

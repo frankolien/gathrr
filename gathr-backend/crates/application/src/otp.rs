@@ -173,3 +173,8 @@ fn placeholder_name(destination: &str) -> &str {
     destination.split('@').next().unwrap_or(destination)
 }
 
+fn generate_code() -> String {
+    let ceiling = 10_u32.pow(CODE_LENGTH);
+    let value = rand::thread_rng().gen_range(0..ceiling);
+    format!("{value:0width$}", width = CODE_LENGTH as usize)
+}

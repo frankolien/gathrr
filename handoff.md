@@ -1869,3 +1869,21 @@ but the hexagon is not enforced at the application boundary.
 
 ---
 
+## Recommendations
+
+1. Start now on Phase 0-2: they unblock everything and validate the R2 + presigned upload and universal-link flows early. Benchmark: an end-to-end "create event, share link, RSVP on web/second device" demo by end of Phase 2.
+2. Copy Partiful's frictionless model: let guests RSVP via link/code without forcing signup (deferred auth). Partiful states plainly that guests "don't need the app," and this is the single biggest conversion lever; target invite-to-RSVP above 40%.
+3. Differentiate with native chat, which Apple Invites lacks. Ship it in Phase 4 as the retention hook.
+4. Pin crate versions: actix-web 4.14.1, sqlx 0.8.6, a2 latest. Re-evaluate sqlx 0.9 (raised MSRV to Rust 1.94) after it stabilizes in your CI.
+5. Enforce the CLAUDE.md rules via CI gates (clippy -D warnings, sqlx prepare, Swift 6 mode) so the "cleanest codebase" constraint is machine-checked, not aspirational.
+6. Build the web RSVP page (Section 9) before the iOS event detail screen. It is the smallest surface in the product, it is the entire differentiation thesis, and every day it does not exist is a day the conversion metric cannot be measured.
+7. Solve SMS delivery (14.2) in Phase 1 or ship Sign in with Apple only. DND filtering on Nigerian networks silently drops OTPs, and discovering that during beta costs a week of misattributed "auth is broken" debugging.
+8. Treat Section 17 as settled before any UI work starts. The tab bar and the event-detail action bar are load-bearing structure; changing either after Phase 2 means touching every feature package.
+9. Build the three L0 platform items (flags, server config, min-client) in Phase 0 before the first feature. They cost about a week and they are what makes every later mistake recoverable without an App Store review cycle.
+10. Adopt the Section 23 gates literally, especially the 40% invite-to-RSVP gate at Phase 2. A roadmap that advances on features shipped rather than metrics hit is how a product ends up with five half-working surfaces and no working loop.
+11. Build the admin console (Section 24, L1) in Phase 2, however ugly. It is the highest-leverage single item in the entire platform ladder and the clearest structural difference between an indie app and one that operates at scale.
+12. Treat the App Clip and the Live Activity as core scope, not polish (Section 26). The Clip is a distribution mechanism — the iOS half of the no-install RSVP thesis — and the Live Activity puts the product's central object, a countdown, on the Lock Screen of a guest who has not opened the app in a week. Both are more valuable than any second-tab feature on the roadmap.
+13. Keep the App Clip to one screen. Its 15MB ceiling is the strongest argument for the SPM modularization in 3.2 — if `DesignSystem` and `Networking` cannot be linked without dragging in feature packages, the Clip cannot ship at all.
+
+Thresholds that change the plan: if concurrent load on capacity-limited events is high, move the capacity guard to a dedicated counter row or advisory locks; if chat scales beyond a single node, replace the in-process broadcast with Redis pub/sub or NATS; if image transform latency matters, precompute variants in a worker rather than on the fly.
+

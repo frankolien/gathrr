@@ -1598,3 +1598,126 @@ There is a second, literal reading of "enterprise": selling to companies. Luma, 
 
 ---
 
+## 26. Native Platform Integration
+
+### 26.1 What "native" means here
+
+Three distinct levels, and most apps that claim to be native only reach the first:
+
+1. **Built with the platform's tools** — SwiftUI, Swift 6, no cross-platform runtime. Already settled in Section 3.
+2. **Using the platform's idioms** — `ScrollView` paging rather than a hand-rolled carousel, `ContentUnavailableView` rather than a custom empty state, `ShareLink` rather than a bespoke share sheet. Free correctness, free accessibility, free future OS behavior.
+3. **Living in the platform's surfaces** — Lock Screen, Dynamic Island, Siri, Spotlight, Wallet, Maps, Calendar, and the App Clip. This is where an events app either feels like it belongs on the phone or feels like a website in a wrapper.
+
+Level 3 is not decoration for this product. A countdown-centric app that does not ship a Live Activity is ignoring its single best surface, and an invite product that requires an install to RSVP has already lost the guest.
+
+### 26.2 Tier 1 — Build
+
+| Capability | Why it is core, not polish | Phase |
+|---|---|---|
+| **App Clip** | The iOS answer to Section 9: RSVP with no install, launched straight from a link, QR, or App Clip Code. Complements the web path rather than replacing it (D10) | 2 |
+| **Live Activity + Dynamic Island** | The event detail screen *is* a countdown. Putting it on the Lock Screen, started by push without the app running, is the highest-value native surface in the product | 3 |
+| **Interactive notification actions** | Going / Maybe / Can't Go directly on the reminder push. Removes every tap between intent and RSVP — a direct conversion lever on the headline metric | 3 |
+| **Widgets** (home + Lock Screen, interactive) | Next event with a live countdown, one-tap RSVP from the widget | 3 |
+| **EventKit write** | Add to Calendar on RSVP. Top driver of RSVP-to-attendance | 3 |
+| **Universal Links + AASA** | Already mandatory (9.6). Add the `appclips` key when the App Clip ships | 2 |
+| **Sign in with Apple + Passkeys + SMS autofill** | `.textContentType(.oneTimeCode)` makes OTP a single tap. Passkeys remove the OTP dependency entirely for returning users — directly mitigates the DND risk in 14.2 | 1 |
+
+### 26.3 Tier 2 — High value, low cost
+
+| Capability | Use |
+|---|---|
+| **App Intents + App Shortcuts** | "Create an event", "Who's going to Amara's birthday", "When's my next event". Powers Siri, Shortcuts, Spotlight, and the Action button from one implementation. Conform `Event` to `AppEntity` and `IndexedEntity` so events are searchable from the Home Screen |
+| **Wallet pass (PKPass)** | The RSVP becomes an event ticket carrying the check-in QR (8.10). `relevantDate` and venue coordinates surface it on the Lock Screen at the right time and place, with no app involvement |
+| **MapKit** | `MKLocalSearchCompleter` for the location field in S6, a map on S4, `MKMapItem.openMaps` for directions, and `LookAroundPreview` for a street-level look at the venue — genuinely useful when "Victoria Island, Lagos" is all you were given |
+| **Communication Notifications** | Donate `INSendMessageIntent` so chat pushes carry the sender's avatar and can break through Focus. Costs one entitlement and makes chat notifications look first-party |
+| **ShareLink + Transferable** | Conform `Event` to `Transferable` with a `SharePreview` and you get the system share sheet, AirDrop, Messages, and WhatsApp from a single API — including the rich preview that carries the invite (9.5) |
+| **BGTaskScheduler** | Drain the outbox (10.1) and refresh the feed in the background so the app is current on open |
+| **TipKit** | Native, rate-limited feature hints instead of hand-built coach marks |
+| **Haptics** | `.sensoryFeedback(.success, trigger: rsvpSubmitted)`. One line, and RSVP confirmation is the moment that earns it |
+| **Writing Tools** | Free in any `TextEditor` on iOS 18+ — the event description field gets rewriting and proofreading at zero cost |
+
+### 26.4 App Clip Specification
+
+The App Clip and the web page (Section 9) are the same product decision expressed twice. A guest opening `gathr.app/i/{code}`:
+
+- **iOS, app installed** → universal link opens the full app at S4.
+- **iOS, not installed** → App Clip card appears, guest RSVPs in the Clip, and is offered the full app afterward.
+- **Android, desktop, in-app browsers** → the server-rendered page (9.5).
+
+Constraints that shape the build: the Clip must stay under **15MB uncompressed**, which means it links `DesignSystem`, `Models`, and `Networking` but not the feature packages — a direct payoff from the SPM modularization in 3.2. It cannot use App Groups; share the guest session with the full app through a **shared Keychain access group** so an RSVP made in the Clip is already there after install. It can request notifications for 8 hours (7 days with the extended entitlement), which is exactly long enough to deliver the 2-hour reminder. Sign in with Apple works inside it.
+
+Scope: **one screen** — cover, title, date, location, three RSVP buttons, confirmation. Nothing else. Every feature added to a Clip costs budget against the 15MB ceiling and latency against the invocation, and the whole point is that it opens instantly.
+
+Ship **App Clip Codes** for physical contexts — printed on a flyer at the venue, they are visually distinctive, scannable by camera, and NFC-capable. This is a real advantage over a plain QR in a market where events are promoted physically.
+
+Registration: Advanced App Clip Experiences in App Store Connect for `gathr.app/i/*`, plus the `appclips` key in the AASA file and a Smart App Banner meta tag on the web page.
+
+### 26.5 Live Activity Specification
+
+```
+T−8h   Push-to-start (no app launch required) → Activity begins
+       Lock Screen: cover thumb, title, live countdown, going count
+       Dynamic Island compact: category glyph + time remaining
+       Dynamic Island expanded: + location and a Directions button
+T−0    State flips to "Happening now" → primary action becomes Directions
+T+2h   Activity ends, or ends early on check-in (8.10)
+```
+
+Use `Text(timerInterval:countsDown:)` so the countdown ticks without a single push or timeline refresh — the system renders it. Server updates go over APNs with `apns-push-type: liveactivity` and are reserved for **material changes only**: time change, venue change, cancellation. A countdown that burns push budget to redraw a number it can render locally is the classic implementation mistake here.
+
+Push-to-start tokens are registered per event on RSVP going, so the Activity appears for guests who have not opened the app in days. That is the whole value.
+
+### 26.6 Widgets
+
+`.systemSmall` and `.systemMedium`: next event, cover, live countdown via `Text(timerInterval:)`. Lock Screen `.accessoryRectangular` and `.accessoryCircular` for the same countdown. Interactive widgets (iOS 17+) put Going / Maybe behind an `AppIntent` so a guest RSVPs without ever opening the app.
+
+Timeline policy: `.after(nextEvent.startsAt)` — never a periodic refresh. The countdown text updates itself; the timeline only needs to change when the *next event* changes.
+
+### 26.7 SwiftUI-Native Implementation of the Mockups
+
+The mockups map onto current SwiftUI primitives almost exactly. Build them this way rather than reinventing:
+
+| Mockup element | Native API |
+|---|---|
+| "This week" carousel with peeking next card | `ScrollView(.horizontal)` + `.scrollTargetBehavior(.viewAligned)` + `.containerRelativeFrame(.horizontal)` + `.scrollTransition` for the scale and opacity falloff. Not a `TabView` hack |
+| Onboarding carousel with scaled side cards | Same APIs, `.scrollTransition` driving the 0.88 scale (7.4) |
+| Countdown segments | `TimelineView(.periodic(from:by:60))`, one per screen |
+| RSVP sheet | `.sheet` + `.presentationDetents([.medium])` + `.presentationDragIndicator` |
+| Empty states (8.11) | `ContentUnavailableView` — the native primitive, correct for free in every locale and accessibility setting |
+| Pull to refresh | `.refreshable` |
+| Guest search in S9 | `.searchable` |
+| Cover picker in S6 | `PhotosPicker` + `Transferable` |
+| Share button on S4 | `ShareLink` with `SharePreview` |
+| Category chips, all glyphs | SF Symbols with `.symbolEffect` on state change |
+| Page dots | `.tabViewStyle(.page)` where appropriate, else the token in 7.4 |
+
+### 26.8 System Citizenship
+
+Being native also means deferring to the system's state, which matters more in Lagos than in most markets:
+
+- **Low Data Mode**: check `NWPath.isConstrained` and drop to thumbnail image variants, suspend prefetch, and disable the OG-quality cover download. Set `allowsConstrainedNetworkAccess = false` on non-essential requests. This directly serves 14.1.
+- **Low Power Mode**: suspend Live Activity push updates and background refresh.
+- **Expensive networks**: `isExpensive` gates video and full-resolution downloads.
+- **Focus**: respect it; only `event_cancelled` and communication notifications break through.
+- **Dynamic Type, Reduce Motion, Increase Contrast, Bold Text, Reduce Transparency**: all honored (Section 15). Reduce Transparency in particular must give the glass chips (7.1) an opaque fallback, or the label over a photo becomes unreadable.
+
+### 26.9 Skip
+
+Consistent with the doctrine in Section 22, these are native but not needed: iMessage app extension (high cost, and Apple owns that surface with Invites), SharePlay, Handoff, Focus filters, Control Center controls, NFC check-in (the QR already works), Live Text invite scanning, CloudKit sync (you have a backend), and Apple Pay until ticketing exists at all.
+
+### 26.10 App Store Gates
+
+Native also means shipping what Apple now requires, all of which blocks submission rather than being caught in review roulette:
+
+- **`PrivacyInfo.xcprivacy`** declaring collected data types and required-reason API usage, plus signed third-party SDKs.
+- **Account deletion in-app** (already scheduled for Phase 1, 13.3) — a hard rejection if absent.
+- Purpose strings for camera (QR scan), photo library, and notifications that say what the app actually does with each.
+- App Clip card assets and experience registration before the Clip can be tested outside TestFlight.
+- Sign in with Apple offered wherever a third-party sign-in is offered.
+
+### 26.11 Design Language
+
+Apple's current design direction (Liquid Glass, introduced with iOS 26) is materially different from the flat iOS 17/18 language the mockups are drawn in. This is a real decision, not a detail: an app in the previous language reads as dated on current hardware, while one that adopts it wholesale diverges from the approved designs. The mockups' translucent chips over photography (7.1) already gesture in that direction, so the gap is smaller than it looks. See D9.
+
+---
+

@@ -40,3 +40,186 @@ async fn body_text(response: ServiceResponse) -> String {
     String::from_utf8_lossy(&bytes).into_owned()
 }
 
+fn event_body() -> Value {
+    json!({
+        "title": "Amara's 26th Birthday",
+        "category": "birthday",
+        "location_name": "Victoria Island, Lagos",
+        "starts_at": "2026-09-08T18:00:00Z",
+        "publish_now": true
+    })
+}
+
+#[actix_web::test]
+async fn the_demo_spine_works_end_to_end() {
+    let state = state().await;
+    let app = service!(state);
+
+    let signed_in = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/v1/auth/dev")
+            .set_json(json!({ "display_name": "Amara Chukwu" }))
+            .to_request(),
+    )
+    .await;
+    assert!(signed_in.status().is_success());
+    let tokens = body_json(signed_in).await;
+    let bearer = format!("Bearer {}", tokens["access_token"].as_str().unwrap());
+
+    let key = Uuid::new_v4().to_string();
+    let created = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/v1/events")
+            .insert_header(("authorization", bearer.clone()))
+            .insert_header(("idempotency-key", key.clone()))
+            .set_json(event_body())
+            .to_request(),
+    )
+    .await;
+    assert_eq!(created.status().as_u16(), 201);
+    let event = body_json(created).await;
+    let event_id = event["id"].as_str().unwrap().to_owned();
+    assert_eq!(event["status"], "published");
+
+    let replayed = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/v1/events")
+            .insert_header(("authorization", bearer.clone()))
+            .insert_header(("idempotency-key", key.clone()))
+            .set_json(event_body())
+            .to_request(),
+    )
+    .await;
+    assert_eq!(
+        body_json(replayed).await["id"].as_str().unwrap(),
+        event_id,
+        "a replayed key must return the original event, not create a second one"
+    );
+
+    let invite = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri(&format!("/v1/events/{event_id}/invites"))
+            .insert_header(("authorization", bearer.clone()))
+            .set_json(json!({}))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(invite.status().as_u16(), 201);
+    let invite = body_json(invite).await;
+    let code = invite["code"].as_str().unwrap().to_owned();
+    assert_eq!(code.len(), 10);
+
+    let page = test::call_service(
+        &app,
+        test::TestRequest::get()
+            .uri(&format!("/i/{code}"))
+            .to_request(),
+    )
+    .await;
+    assert!(page.status().is_success());
+    let html = body_text(page).await;
+    assert!(html.contains("26th Birthday"));
+    assert!(
+        html.contains("7:00 PM"),
+        "times render in the event timezone"
+    );
+    assert!(
+        html.contains("og:title"),
+        "link previews need open graph tags"
+    );
+
+    let rsvp = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri(&format!("/i/{code}/rsvp"))
+            .set_form([
+                ("display_name", "Tunde Bello"),
+                ("status", "going"),
+                ("plus_ones", "1"),
+            ])
+            .to_request(),
+    )
+    .await;
+    assert!(rsvp.status().is_success());
+    assert!(body_text(rsvp).await.contains("going</h1>"));
+
+    let guests = test::call_service(
+        &app,
+        test::TestRequest::get()
+            .uri(&format!("/v1/events/{event_id}/guests"))
+            .insert_header(("authorization", bearer))
+            .to_request(),
+    )
+    .await;
+    let guests = body_json(guests).await;
+    assert_eq!(guests["going"], 1, "one person is going");
+    assert_eq!(guests["seats_taken"], 2, "but they consume two seats");
+    assert_eq!(guests["guests"][0]["display_name"], "Tunde Bello");
+}
+
+#[actix_web::test]
+async fn mutating_requests_require_an_idempotency_key() {
+    let state = state().await;
+    let app = service!(state);
+
+    let tokens = body_json(
+        test::call_service(
+            &app,
+            test::TestRequest::post()
+                .uri("/v1/auth/dev")
+                .set_json(json!({ "display_name": "Key Tester" }))
+                .to_request(),
+        )
+        .await,
+    )
+    .await;
+    let bearer = format!("Bearer {}", tokens["access_token"].as_str().unwrap());
+
+    let missing = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/v1/events")
+            .insert_header(("authorization", bearer.clone()))
+            .set_json(event_body())
+            .to_request(),
+    )
+    .await;
+    assert_eq!(missing.status().as_u16(), 422);
+
+    let key = Uuid::new_v4().to_string();
+    test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/v1/events")
+            .insert_header(("authorization", bearer.clone()))
+            .insert_header(("idempotency-key", key.clone()))
+            .set_json(event_body())
+            .to_request(),
+    )
+    .await;
+
+    let conflicting = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/v1/events")
+            .insert_header(("authorization", bearer))
+            .insert_header(("idempotency-key", key))
+            .set_json(json!({ "title": "Something else", "starts_at": "2026-09-09T18:00:00Z" }))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(
+        conflicting.status().as_u16(),
+        409,
+        "the same key with a different payload must not silently replay"
+    );
+    assert_eq!(
+        body_json(conflicting).await["error"]["code"],
+        "idempotency_conflict"
+    );
+}
+

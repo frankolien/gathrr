@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{ title }} · Gathr</title>
+<meta property="og:type" content="website">
+<meta property="og:title" content="{{ title }}">
+<meta property="og:description" content="{{ when }}{% if location %} · {{ location }}{% endif %}">
+<meta property="og:url" content="{{ invite_url }}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="apple-itunes-app" content="app-id=0000000000, app-argument={{ invite_url }}">
+<style>
+:root {
+  --canvas: #f2f3f5; --surface: #fff; --inset: #f0f1f3;
+  --text: #111214; --muted: #8e8e93; --accent: #007aff; --tint: {{ tint }};
+}
+@media (prefers-color-scheme: dark) {
+  :root { --canvas: #0b0b0c; --surface: #1c1c1e; --inset: #2c2c2e; --text: #fff; --muted: #98989f; --accent: #0a84ff; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--canvas); color: var(--text);
+  font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+.wrap { max-width: 480px; margin: 0 auto; padding: 20px; }
+.card { background: var(--surface); border-radius: 20px; overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,.06); }
+.cover { height: 180px; background: linear-gradient(135deg, var(--tint), color-mix(in srgb, var(--tint) 55%, #000)); position: relative; }
+.chip { position: absolute; top: 14px; left: 14px; background: rgba(28,28,30,.45);
+  color: #fff; font-size: 11px; font-weight: 600; letter-spacing: .5px;
+  padding: 6px 10px; border-radius: 999px; backdrop-filter: blur(20px); }
+.body { padding: 20px; }
+h1 { font-size: 24px; line-height: 1.2; margin: 0 0 12px; letter-spacing: -.3px; }
+.meta { color: var(--muted); font-size: 15px; margin: 4px 0; }
+.count { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--inset);
+  color: var(--muted); font-size: 13px; }
+form { margin-top: 20px; }
+label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+input[type=text], input[type=number] { width: 100%; padding: 14px; font-size: 16px;
+  border: 0; border-radius: 14px; background: var(--inset); color: var(--text); margin-bottom: 14px; }
+.actions { display: grid; gap: 10px; }
+button { width: 100%; padding: 16px; font-size: 17px; font-weight: 600;
+  border: 0; border-radius: 16px; cursor: pointer; }
+.going { background: var(--accent); color: #fff; }
+.maybe, .declined { background: var(--inset); color: var(--text); }
+.notice { background: var(--inset); border-radius: 14px; padding: 14px;
+  font-size: 14px; margin-bottom: 16px; }
+footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 24px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="cover"><span class="chip">{{ category_label }}</span></div>
+    <div class="body">
+      <h1>{{ title }}</h1>
+      <p class="meta">{{ when }}</p>
+      {% if location %}<p class="meta">{{ location }}</p>{% endif %}
+      <p class="count">{{ going_guests }} going · hosted by {{ host_first_name }}</p>
+
+      {% if notice %}<div class="notice">{{ notice }}</div>{% endif %}
+
+      <form method="post" action="/i/{{ code }}/rsvp">
+        <label for="display_name">Your name</label>
+        <input type="text" id="display_name" name="display_name" required
+               maxlength="80" value="{{ display_name }}" autocomplete="name">
+        <label for="plus_ones">Bringing anyone?</label>
+        <input type="number" id="plus_ones" name="plus_ones" min="0"
+               max="{{ max_plus_ones }}" value="{{ plus_ones }}">
+        <input type="hidden" name="accept_waitlist" value="{{ accept_waitlist }}">
+        <div class="actions">
+          <button class="going" type="submit" name="status" value="going">
+            {% if accept_waitlist == "true" %}Join the waitlist{% else %}I'm going{% endif %}
+          </button>
+          <button class="maybe" type="submit" name="status" value="maybe">Maybe</button>
+          <button class="declined" type="submit" name="status" value="declined">Can't go</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <footer>No app needed. Powered by Gathr.</footer>
+</div>
+</body>
+</html>

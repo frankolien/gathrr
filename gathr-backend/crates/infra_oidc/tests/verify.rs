@@ -88,3 +88,48 @@ fn audiences() -> Vec<String> {
     vec!["gathr-ios-client".to_owned()]
 }
 
+#[test]
+fn a_well_formed_google_token_yields_the_subject_name_and_email() {
+    let token = sign(&google_claims());
+    let identity = verify(&token, &keys(), Provider::Google, &audiences(), None)
+        .expect("a valid token should verify");
+
+    assert_eq!(identity.subject, "google-subject-1");
+    assert_eq!(identity.name.as_deref(), Some("Amara Chukwu"));
+    assert_eq!(identity.email.as_deref(), Some("amara@example.com"));
+}
+
+#[test]
+fn a_token_minted_for_another_app_is_rejected() {
+    let mut claims = google_claims();
+    claims.aud = "some-other-app".to_owned();
+    let token = sign(&claims);
+
+    assert!(matches!(
+        verify(&token, &keys(), Provider::Google, &audiences(), None),
+        Err(OidcError::InvalidToken(_))
+    ));
+}
+
+#[test]
+fn an_expired_token_is_rejected() {
+    let mut claims = google_claims();
+    claims.exp = OffsetDateTime::now_utc().unix_timestamp() - 3_600;
+    let token = sign(&claims);
+
+    assert!(matches!(
+        verify(&token, &keys(), Provider::Google, &audiences(), None),
+        Err(OidcError::InvalidToken(_))
+    ));
+}
+
+#[test]
+fn a_google_token_presented_as_apple_is_rejected_on_issuer() {
+    let token = sign(&google_claims());
+
+    assert!(matches!(
+        verify(&token, &keys(), Provider::Apple, &audiences(), None),
+        Err(OidcError::InvalidToken(_))
+    ));
+}
+

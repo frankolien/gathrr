@@ -205,3 +205,86 @@ async fn the_same_address_in_a_different_case_reaches_the_same_account() {
     );
 }
 
+#[actix_web::test]
+async fn a_wrong_code_is_rejected_and_the_sixth_attempt_locks_the_challenge() {
+    let state = state().await;
+    let app = service!(state);
+    let address = format!("amara+{}@example.com", Uuid::new_v4());
+    let real = request_code!(app, &address);
+    let wrong = if real == "000000" { "111111" } else { "000000" };
+
+    for attempt in 1..=5 {
+        let response = test::call_service(
+            &app,
+            test::TestRequest::post()
+                .uri("/v1/auth/otp/verify")
+                .set_json(json!({ "channel": "email", "destination": &address, "code": wrong }))
+                .to_request(),
+        )
+        .await;
+        assert_eq!(
+            response.status(),
+            401,
+            "attempt {attempt} should read as a bad code"
+        );
+    }
+
+    let locked = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/v1/auth/otp/verify")
+            .set_json(json!({ "channel": "email", "destination": &address, "code": real }))
+            .to_request(),
+    )
+    .await;
+
+    assert_eq!(locked.status(), 429);
+    assert_eq!(
+        body_json(locked).await["error"]["code"],
+        "otp_attempts_exceeded"
+    );
+}
+
+#[actix_web::test]
+async fn asking_for_a_second_code_retires_the_first_one() {
+    let state = state().await;
+    let app = service!(state);
+    let address = format!("amara+{}@example.com", Uuid::new_v4());
+
+    let stale = request_code!(app, &address);
+    let fresh = request_code!(app, &address);
+    assert_ne!(stale, fresh, "a reissue must not repeat the retired code");
+
+    let replayed = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/v1/auth/otp/verify")
+            .set_json(json!({ "channel": "email", "destination": &address, "code": stale }))
+            .to_request(),
+    )
+    .await;
+
+    assert_eq!(replayed.status(), 401);
+}
+
+#[actix_web::test]
+async fn a_malformed_destination_is_refused_before_a_code_is_ever_issued() {
+    let state = state().await;
+    let app = service!(state);
+
+    let response = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/v1/auth/otp/request")
+            .set_json(json!({ "channel": "email", "destination": "not-an-email" }))
+            .to_request(),
+    )
+    .await;
+
+    assert_eq!(response.status(), 422);
+    assert_eq!(
+        body_json(response).await["error"]["code"],
+        "validation_failed"
+    );
+}
+

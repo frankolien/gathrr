@@ -58,3 +58,72 @@ async fn sign_in(app: &impl Harness, name: &str) -> String {
         .to_owned()
 }
 
+async fn publish_event(app: &impl Harness, token: &str, title: &str) -> Uuid {
+    let response = test::call_service(
+        app,
+        test::TestRequest::post()
+            .uri("/v1/events")
+            .insert_header(("authorization", format!("Bearer {token}")))
+            .insert_header(("idempotency-key", Uuid::new_v4().to_string()))
+            .set_json(json!({
+                "title": title,
+                "category": "party",
+                "starts_at": "2027-09-08T18:00:00Z",
+                "publish_now": true
+            }))
+            .to_request(),
+    )
+    .await;
+    Uuid::parse_str(body_json(response).await["id"].as_str().unwrap()).unwrap()
+}
+
+async fn rsvp(app: &impl Harness, token: &str, event: Uuid, status: &str) {
+    let response = test::call_service(
+        app,
+        test::TestRequest::post()
+            .uri(&format!("/v1/events/{event}/rsvp"))
+            .insert_header(("authorization", format!("Bearer {token}")))
+            .insert_header(("idempotency-key", Uuid::new_v4().to_string()))
+            .set_json(json!({ "status": status, "plus_ones": 0, "accept_waitlist": false }))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(response.status(), 200);
+}
+
+async fn post_message(app: &impl Harness, token: &str, event: Uuid, body: &str) {
+    let response = test::call_service(
+        app,
+        test::TestRequest::post()
+            .uri(&format!("/v1/events/{event}/messages"))
+            .insert_header(("authorization", format!("Bearer {token}")))
+            .insert_header(("idempotency-key", Uuid::new_v4().to_string()))
+            .set_json(json!({ "body": body }))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(response.status(), 201);
+}
+
+async fn feed(app: &impl Harness, token: &str) -> Value {
+    let response = test::call_service(
+        app,
+        test::TestRequest::get()
+            .uri("/v1/notifications")
+            .insert_header(("authorization", format!("Bearer {token}")))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(response.status(), 200);
+    body_json(response).await
+}
+
+fn entries_of_kind<'a>(feed: &'a Value, kind: &str, event: Uuid) -> Vec<&'a Value> {
+    feed["notifications"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|entry| entry["kind"] == kind && entry["event_id"] == event.to_string())
+        .collect()
+}
+

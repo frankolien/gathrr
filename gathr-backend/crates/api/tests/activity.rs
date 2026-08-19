@@ -238,3 +238,47 @@ async fn muting_an_event_stops_it_reaching_the_feed() {
     assert!(entries_of_kind(&feed, "rsvp_accepted", event).is_empty());
 }
 
+#[actix_web::test]
+async fn cancelling_an_event_reaches_the_guests_and_not_the_host_who_did_it() {
+    let state = state().await;
+    let app = service!(state);
+    let host = sign_in(&app, "Amara Chukwu").await;
+    let guest = sign_in(&app, "Tunde Bello").await;
+    let event = publish_event(&app, &host, "Called Off").await;
+    rsvp(&app, &guest, event, "going").await;
+
+    let cancelled = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri(&format!("/v1/events/{event}/cancel"))
+            .insert_header(("authorization", format!("Bearer {host}")))
+            .insert_header(("idempotency-key", Uuid::new_v4().to_string()))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(cancelled.status(), 200);
+
+    assert_eq!(
+        entries_of_kind(&feed(&app, &guest).await, "event_cancelled", event).len(),
+        1
+    );
+    assert!(
+        entries_of_kind(&feed(&app, &host).await, "event_cancelled", event).is_empty(),
+        "the host already knows, they pressed the button"
+    );
+}
+
+#[actix_web::test]
+async fn a_signed_out_caller_has_no_feed() {
+    let state = state().await;
+    let app = service!(state);
+
+    let response = test::call_service(
+        &app,
+        test::TestRequest::get()
+            .uri("/v1/notifications")
+            .to_request(),
+    )
+    .await;
+    assert_eq!(response.status(), 401);
+}

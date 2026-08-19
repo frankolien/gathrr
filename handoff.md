@@ -911,3 +911,73 @@ Every list and detail screen implements four states, and each is a snapshot test
 
 ---
 
+## 9. Web RSVP: the No-App Path
+
+### 9.1 Why this is not optional
+
+The spec names frictionless link-based RSVP as "the single biggest conversion lever" (Recommendation 2) and targets above 40% invite-to-RSVP, yet every designed surface is inside an iOS app that the recipient may not have. Partiful's stated advantage is that guests "don't need the app"; Apple's own framing is that "anyone can RSVP, regardless of whether they have an Apple Account or Apple device." An invite link that lands on an App Store page instead of an RSVP button forfeits the entire thesis. The web path is MVP scope, not a nice-to-have.
+
+On iOS the same job is done better by an App Clip (26.4). Both ship, from one URL, serving disjoint audiences — see D10.
+
+### 9.2 Guest Identity Model
+
+A guest who RSVPs from the web has no account. Rather than making `rsvps.user_id` nullable — which would weaken `UNIQUE (event_id, user_id)` and every invariant that depends on it — create a **shadow user**: a row in `users` with `is_guest = true`, a display name, and optionally a phone. All existing invariants hold unchanged.
+
+This requires relaxing the unconditional `UNIQUE` on `users.phone` and `users.email`, since a shadow row may share a phone with a real account until it is claimed. Replace with partial unique indexes over claimed users only (migration 0002, Section 21).
+
+Guest sessions are a signed, httpOnly, 90-day cookie backed by `guest_sessions`, so a returning guest sees and can change their own RSVP.
+
+### 9.3 Claim and Merge
+
+When a guest later signs up with the same phone, their history must follow them. On successful OTP verification for phone `P`:
+
+```
+BEGIN
+  SELECT pg_advisory_xact_lock(hashtext(P))
+  canonical := the non-guest user with phone P (create if absent)
+  FOR EACH shadow IN users WHERE phone = P AND is_guest = true:
+    UPDATE rsvps SET user_id = canonical WHERE user_id = shadow
+      ON CONFLICT (event_id, user_id) DO UPDATE
+        SET status, plus_ones FROM the row with the greater updated_at
+    UPDATE messages SET sender_id = canonical WHERE sender_id = shadow
+    UPDATE media    SET owner_id  = canonical WHERE owner_id  = shadow
+    UPDATE attendance SET user_id = canonical WHERE user_id = shadow ON CONFLICT DO NOTHING
+    DELETE FROM users WHERE id = shadow
+COMMIT
+```
+
+The advisory lock serializes concurrent claims of the same number. Complexity O(n) in the shadow's row count, which is small.
+
+### 9.4 Endpoints
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| GET | `/i/{code}` | none | Server-rendered invite page (HTML) |
+| POST | `/i/{code}/rsvp` | guest cookie or bearer | Guest RSVP; creates shadow user on first use |
+| GET | `/v1/invites/{code}/public` | none | Public event projection (JSON, for the page and for link unfurls) |
+| POST | `/v1/auth/claim` | bearer | Runs 9.3 after OTP verify |
+
+The public projection deliberately leaks nothing: title, cover, starts_at, timezone, location name, host **first name only**, going count. Never the guest list, never any phone number, never the exact address until the viewer has RSVP'd going (host-configurable, defaults to on).
+
+### 9.5 Rendering and Link Previews
+
+Server-render with `askama` or `minijinja` from the Actix `api` crate — no separate frontend deployment. The page is one screen: cover, title, date in the event's timezone, location, and three large RSVP buttons matching the S5 hierarchy. Total payload budget 120KB including the cover variant.
+
+Open Graph and Twitter Card tags are mandatory and are what the invite looks like in WhatsApp, iMessage, and Instagram DMs — for most guests this preview *is* the invite:
+
+```html
+<meta property="og:title"       content="Amara's 26th Birthday">
+<meta property="og:description" content="Sat, Aug 8 · 7:00 PM · Victoria Island, Lagos">
+<meta property="og:image"       content="https://cdn.gathr.app/og/{event_id}.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+```
+
+Generate the 1200×630 OG image server-side on publish and cache it in R2. A dynamic OG image with the title and date burned in materially outperforms a bare cover crop.
+
+### 9.6 Universal Links
+
+Serve `/.well-known/apple-app-site-association` as `application/json` with no extension, matching paths `/i/*` and `/e/*`. iOS opens the app when installed and the web page when not. Include the `webcredentials` service for Keychain-backed phone autofill. Deep link routes map to the `Route` enum (3.3): `/i/{code}` → `.invite(code)` → resolves → `.eventDetail(id)`.
+
+---
+

@@ -46,3 +46,24 @@ pub async fn mute(
     Ok(HttpResponse::Ok().json(serde_json::json!({ "muted": body.muted })))
 }
 
+pub async fn feed(
+    state: web::Data<AppState>,
+    user: AuthUser,
+    query: web::Query<NotificationFeedQuery>,
+) -> Result<HttpResponse, ApiError> {
+    let page = activity::page(&state.db, user.0, query.before, query.limit).await?;
+
+    Ok(HttpResponse::Ok().json(NotificationFeedResponse {
+        unread: page.unread,
+        notifications: page.entries.into_iter().map(Into::into).collect(),
+    }))
+}
+
+pub async fn mark_read(
+    state: web::Data<AppState>,
+    user: AuthUser,
+    body: web::Json<MarkReadRequest>,
+) -> Result<HttpResponse, ApiError> {
+    let unread = activity::mark_read(&state.db, user.0, &body.ids).await?;
+    Ok(HttpResponse::Ok().json(UnreadCountResponse { unread }))
+}

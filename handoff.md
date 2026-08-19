@@ -83,3 +83,223 @@ V2: discovery/explore feed, recurring events, ticketing/payments, collaborative 
 
 ---
 
+## 2. System Design: Rust + Actix Web Backend
+
+### 2.1 Architecture and Workspace Layout
+
+Use Actix Web 4.x (latest 4.14.1, MSRV Rust 1.88) with a Cargo workspace in a hexagonal (ports and adapters) layout. Domain logic is pure and has no framework dependency; adapters implement traits for Postgres, object storage, and APNs.
+
+```
+gathr-backend/
+  Cargo.toml            # [workspace]
+  crates/
+    domain/             # entities, value objects, invariants, trait ports (no actix, no sqlx)
+    application/        # use cases / services orchestrating ports
+    infra_db/           # sqlx adapters implementing domain ports
+    infra_storage/      # R2/S3 presigned URL adapter
+    infra_push/         # a2 APNs adapter
+    api/                # actix-web handlers, extractors, middleware, DTOs
+    worker/             # background jobs (reminders) binary
+    common/             # error types, tracing setup, config
+  migrations/           # sqlx migrations
+```
+
+This keeps the domain testable in isolation and lets adapters be swapped. The `api` and `worker` are separate binaries sharing the same crates.
+
+### 2.2 Database Access: SQLx vs Diesel vs SeaORM
+
+Recommendation: SQLx 0.8.6 (the latest 0.8 track; SQLx 0.9.0 shipped around May 2026 with a raised MSRV of Rust 1.94, new smol/async-global-executor runtimes, and an sqlx.toml config file, but pin to 0.8.6 until 0.9 stabilizes in your CI). SQLx gives async-native, compile-time-checked raw SQL against Postgres without an ORM DSL, which suits a schema with explicit transactional invariants (capacity, sequence numbers) where hand-written SQL with FOR UPDATE and ON CONFLICT is clearest. Diesel is compile-time safe but its DSL fights dynamic queries and needs diesel-async; SeaORM is ergonomic for CRUD-heavy Rails-style code but adds abstraction over the same SQLx foundation. For a correctness-critical, query-shaped domain, SQLx is the right call.
+
+Recommended Cargo features: `runtime-tokio`, `tls-rustls-ring-webpki`, `postgres`, `macros`, `migrate`, `uuid`, `time`, `json`. Install `sqlx-cli` for migrations and enable offline mode (a committed `.sqlx/` cache) so CI compiles query macros without a live DB.
+
+### 2.3 Authentication
+
+- Sign in with Apple plus phone/email OTP.
+- Passwords (if any email/password path) hashed with argon2 (argon2id), chosen over bcrypt for faster hashing and stronger memory-hardness.
+- JWT access tokens (short-lived, ~15 min) + refresh tokens with rotation: every refresh issues a new refresh token, burns the old one, and reuse of a burned token revokes the whole token family. Store refresh token metadata server-side (Postgres, optionally Redis) keyed by a family id and jti.
+- Access token carries sub and jti; verify signature, exp, iss, aud.
+
+### 2.4 Realtime Chat
+
+Use actix-ws (0.3) WebSockets, not the older actor-based actix-web-actors. Each connection is handled in a spawned task reading a message stream. Fan-out uses a tokio broadcast channel per event room held in shared state; a subscriber task forwards to each session. Messages are persisted to Postgres with a per-event monotonic sequence number assigned inside a transaction before broadcast. SSE was considered but rejected: chat is bidirectional. Heartbeat ping/pong with a client timeout detects dead connections.
+
+### 2.5 Push Notifications
+
+Use the a2 crate (async APNs over HTTP/2, token-based .p8 auth with signature renewal and caching; battle-tested pushing millions of notifications daily in the WalletConnect Echo Server). Reuse a single Client across requests (opening a new connection per request risks APNs treating it as a DoS). Store device push tokens per user/device; prune tokens on APNs "Unregistered" responses.
+
+### 2.6 Image Upload Pipeline
+
+Cloudflare R2 (S3-compatible, zero egress). The client requests a presigned PUT URL from the API (generated via the AWS SDK for Rust `presigned()` on `put_object`, expiry ~5 minutes), uploads directly to R2, then confirms; the API records a media row. Generate resized variants (thumbnail, card, cover) either via an image-resizing worker or an on-the-fly transform. Never proxy bytes through the API.
+
+### 2.7 Invite Codes and QR
+
+Short codes use Crockford base32 (no I, L, O, U to avoid ambiguity). Codes stored with a unique index; QR encodes the universal link that embeds the code. See Section 5.3 for semantics and Section 5.1 for the generation algorithm.
+
+### 2.8 Rate Limiting and Idempotency
+
+- Rate limiting: token bucket per user/IP on sensitive endpoints (OTP request, RSVP, message send).
+- Idempotency: mutating POSTs accept an `Idempotency-Key` header; the server saves the resulting status code and body for a given key and replays the stored response on retry, following the Stripe pattern (which guarantees the same result, including 5xx, for repeat keys). Critical for queued offline writes.
+
+### 2.9 Background Jobs
+
+Reminders use a Postgres-backed queue with `SELECT ... FOR UPDATE SKIP LOCKED` claiming, which is atomic and race-free across concurrent workers (each worker gets a different job, guaranteed). A `worker` binary polls (or uses LISTEN/NOTIFY for low latency) for due reminder jobs, sends push via a2, and marks them done. For heavier needs, graphile_worker_rs (a Rust port of Graphile Worker with SKIP LOCKED job claiming, LISTEN/NOTIFY wakeups, and cron) is a drop-in option.
+
+### 2.10 Database Schema (Postgres DDL)
+
+```sql
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+CREATE TABLE users (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  apple_sub     TEXT UNIQUE,
+  phone         TEXT UNIQUE,
+  email         TEXT UNIQUE,
+  display_name  TEXT NOT NULL,
+  avatar_media_id UUID,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TYPE event_status AS ENUM ('draft','published','ongoing','ended','cancelled');
+
+CREATE TABLE events (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  host_id       UUID NOT NULL REFERENCES users(id),
+  title         TEXT NOT NULL,
+  category      TEXT,
+  description   TEXT,
+  cover_media_id UUID,
+  location_name TEXT,
+  location_lat  DOUBLE PRECISION,
+  location_lng  DOUBLE PRECISION,
+  starts_at     TIMESTAMPTZ NOT NULL,
+  ends_at       TIMESTAMPTZ,
+  timezone      TEXT NOT NULL DEFAULT 'Africa/Lagos',
+  capacity      INTEGER,
+  status        event_status NOT NULL DEFAULT 'draft',
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_events_starts_at ON events(starts_at);
+
+CREATE TABLE invites (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id      UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  code          TEXT NOT NULL UNIQUE,
+  max_uses      INTEGER,            -- NULL = unlimited
+  uses          INTEGER NOT NULL DEFAULT 0,
+  expires_at    TIMESTAMPTZ,        -- NULL = no expiry
+  created_by     UUID NOT NULL REFERENCES users(id),
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TYPE rsvp_status AS ENUM ('invited','going','maybe','declined','waitlisted');
+
+CREATE TABLE rsvps (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id      UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  user_id       UUID NOT NULL REFERENCES users(id),
+  status        rsvp_status NOT NULL DEFAULT 'invited',
+  plus_ones     INTEGER NOT NULL DEFAULT 0 CHECK (plus_ones >= 0),
+  invite_id     UUID REFERENCES invites(id),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (event_id, user_id)
+);
+CREATE INDEX idx_rsvps_event_status ON rsvps(event_id, status);
+
+CREATE TABLE messages (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id      UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  sender_id     UUID NOT NULL REFERENCES users(id),
+  seq           BIGINT NOT NULL,
+  body          TEXT NOT NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (event_id, seq)
+);
+
+CREATE TABLE devices (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  apns_token    TEXT NOT NULL UNIQUE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_seen_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE media (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_id      UUID NOT NULL REFERENCES users(id),
+  bucket_key    TEXT NOT NULL,
+  content_type  TEXT NOT NULL,
+  width         INTEGER,
+  height        INTEGER,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE reminder_jobs (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id      UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  run_at        TIMESTAMPTZ NOT NULL,
+  kind          TEXT NOT NULL,
+  status        TEXT NOT NULL DEFAULT 'pending',
+  attempts      INTEGER NOT NULL DEFAULT 0,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_reminder_due ON reminder_jobs(run_at) WHERE status = 'pending';
+
+CREATE TABLE event_counters (
+  event_id      UUID PRIMARY KEY REFERENCES events(id) ON DELETE CASCADE,
+  last_seq      BIGINT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE idempotency_keys (
+  key           TEXT PRIMARY KEY,
+  user_id       UUID NOT NULL,
+  response_code INTEGER,
+  response_body JSONB,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+### 2.11 API Design (Endpoint Table)
+
+Versioned under `/v1`. JSON everywhere. Error format below.
+
+| Method | Path | Purpose | Body / Notes |
+|---|---|---|---|
+| POST | /v1/auth/apple | Sign in with Apple | identity token |
+| POST | /v1/auth/otp/request | Request OTP | phone/email |
+| POST | /v1/auth/otp/verify | Verify OTP, issue tokens | code |
+| POST | /v1/auth/refresh | Rotate tokens | refresh token |
+| POST | /v1/auth/logout | Revoke family | - |
+| GET | /v1/me | Current user | - |
+| PATCH | /v1/me | Update profile | display_name, avatar |
+| POST | /v1/devices | Register APNs token | apns_token |
+| DELETE | /v1/devices/{id} | Remove device | - |
+| POST | /v1/events | Create event (Idempotency-Key) | event fields |
+| GET | /v1/events/{id} | Event detail | - |
+| PATCH | /v1/events/{id} | Edit event | partial |
+| POST | /v1/events/{id}/publish | Draft to published | - |
+| POST | /v1/events/{id}/cancel | Cancel event | - |
+| GET | /v1/events?filter=this_week\|hosting\|attending | Feeds | - |
+| POST | /v1/events/{id}/invites | Create invite code | max_uses, expires_at |
+| GET | /v1/invites/{code} | Resolve code | - |
+| POST | /v1/events/{id}/rsvp | Upsert RSVP (Idempotency-Key) | status, plus_ones |
+| GET | /v1/events/{id}/guests | Guest list | - |
+| DELETE | /v1/events/{id}/guests/{uid} | Remove guest | host only |
+| GET | /v1/events/{id}/messages?cursor= | Chat history (keyset) | - |
+| POST | /v1/events/{id}/messages | Send message (Idempotency-Key) | body |
+| GET | /v1/events/{id}/chat/ws | WebSocket upgrade | - |
+| POST | /v1/media/presign | Presigned upload URL | content_type |
+
+Error format:
+```json
+{ "error": { "code": "capacity_exceeded", "message": "Event is at capacity", "request_id": "..." } }
+```
+
+### 2.12 Observability, Deployment, Testing
+
+- Observability: `tracing` with JSON output from day one; request spans with request_id; metrics (Prometheus) for latency, RSVP counts, push success. Structured JSON logging is far easier to set up from the start than to retrofit.
+- Deployment: multi-stage Docker (cargo-chef for cached builds, images often around 80 MB), deploy to Fly.io (Fly Machines, hardware-virtualized containers, TLS terminated by the platform) or a VPS with Caddy for automatic Let's Encrypt TLS. App speaks plain HTTP behind the proxy. Use rustls not OpenSSL to avoid cross-compile pain. Fly's `fly launch` scanner generates a cargo-chef Dockerfile automatically.
+- Testing: unit tests on the domain crate; integration tests with testcontainers (testcontainers-modules Postgres) spinning up a real Postgres per suite, fresh DB per test for isolation. Real-database tests catch SQL syntax, constraints, and transaction issues that mocks miss.
+
+---
+

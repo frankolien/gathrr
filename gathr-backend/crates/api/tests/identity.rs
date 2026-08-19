@@ -288,3 +288,83 @@ async fn a_malformed_destination_is_refused_before_a_code_is_ever_issued() {
     );
 }
 
+#[actix_web::test]
+async fn a_bio_longer_than_the_limit_is_refused() {
+    let state = state().await;
+    let app = service!(state);
+
+    let signed_in = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/v1/auth/dev")
+            .set_json(json!({ "display_name": "Amara Chukwu" }))
+            .to_request(),
+    )
+    .await;
+    let token = body_json(signed_in).await["access_token"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+
+    let response = test::call_service(
+        &app,
+        test::TestRequest::patch()
+            .uri("/v1/me")
+            .insert_header(("authorization", format!("Bearer {token}")))
+            .set_json(json!({ "bio": "a".repeat(301) }))
+            .to_request(),
+    )
+    .await;
+
+    assert_eq!(response.status(), 422);
+}
+
+#[actix_web::test]
+async fn nobody_can_wear_someone_elses_upload_as_an_avatar() {
+    let state = state().await;
+    let app = service!(state);
+
+    let mut tokens = Vec::new();
+    for name in ["Amara Chukwu", "Passing Stranger"] {
+        let signed_in = test::call_service(
+            &app,
+            test::TestRequest::post()
+                .uri("/v1/auth/dev")
+                .set_json(json!({ "display_name": name }))
+                .to_request(),
+        )
+        .await;
+        tokens.push(
+            body_json(signed_in).await["access_token"]
+                .as_str()
+                .unwrap()
+                .to_owned(),
+        );
+    }
+
+    let recorded = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/v1/media")
+            .insert_header(("authorization", format!("Bearer {}", tokens[0])))
+            .set_json(json!({
+                "public_id": format!("gathr/avatars/{}", Uuid::new_v4()),
+                "content_type": "image/jpeg"
+            }))
+            .to_request(),
+    )
+    .await;
+    let media_id = body_json(recorded).await["id"].as_str().unwrap().to_owned();
+
+    let borrowed = test::call_service(
+        &app,
+        test::TestRequest::patch()
+            .uri("/v1/me")
+            .insert_header(("authorization", format!("Bearer {}", tokens[1])))
+            .set_json(json!({ "avatar_media_id": media_id }))
+            .to_request(),
+    )
+    .await;
+
+    assert_eq!(borrowed.status(), 404);
+}

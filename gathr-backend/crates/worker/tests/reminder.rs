@@ -60,6 +60,16 @@ async fn seed_event(db: &Db, starts_at: OffsetDateTime) -> (Uuid, Uuid) {
     .await
     .unwrap();
 
+    sqlx::query!(
+        r#"INSERT INTO event_hosts (event_id, user_id, role, added_by)
+           VALUES ($1, $2, 'owner', $2)"#,
+        event,
+        host
+    )
+    .execute(db)
+    .await
+    .unwrap();
+
     (host, event)
 }
 

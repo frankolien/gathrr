@@ -27,3 +27,24 @@ public enum EventStatus: String, Codable, Sendable {
     }
 }
 
+public enum RSVPStatus: String, Codable, Sendable, CaseIterable {
+    case invited
+    case going
+    case maybe
+    case declined
+    case waitlisted
+
+    public var isGuestSelectable: Bool {
+        self == .going || self == .maybe || self == .declined
+    }
+
+    public var holdsSeats: Bool {
+        self == .going
+    }
+}
+
+public enum FeedFilter: String, Sendable, CaseIterable {
+    case thisWeek = "this_week"
+    case hosting
+    case attending
+}

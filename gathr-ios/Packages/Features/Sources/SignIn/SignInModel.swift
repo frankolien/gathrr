@@ -148,3 +148,15 @@ public final class SignInModel {
     }
 }
 
+enum VerificationRules {
+    static let codeLength = 6
+
+    static func looksReachable(_ destination: String, on channel: VerificationChannel) -> Bool {
+        let trimmed = destination.trimmingCharacters(in: .whitespaces)
+        switch channel {
+        case .email:
+            let parts = trimmed.split(separator: "@")
+            return parts.count == 2 && parts[1].contains(".") && !parts[0].isEmpty
+        }
+    }
+}

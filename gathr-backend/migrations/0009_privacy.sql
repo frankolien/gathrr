@@ -22,3 +22,17 @@ CREATE TABLE blocks (
 );
 CREATE INDEX idx_blocks_blocked ON blocks(blocked_id);
 
+ALTER TABLE messages ADD COLUMN redacted_at TIMESTAMPTZ;
+ALTER TABLE messages ALTER COLUMN sender_id DROP NOT NULL;
+ALTER TABLE messages DROP CONSTRAINT messages_sender_id_fkey;
+ALTER TABLE messages ADD CONSTRAINT messages_sender_id_fkey
+  FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE SET NULL;
+
+ALTER TABLE events DROP CONSTRAINT events_host_id_fkey;
+ALTER TABLE events ADD CONSTRAINT events_host_id_fkey
+  FOREIGN KEY (host_id) REFERENCES users(id) ON DELETE CASCADE;
+
+ALTER TABLE invites DROP CONSTRAINT invites_created_by_fkey;
+ALTER TABLE invites ADD CONSTRAINT invites_created_by_fkey
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE;
+

@@ -47,3 +47,49 @@ pub async fn create(
     Err(AppError::CodeExhaustion)
 }
 
+pub async fn resolve(db: &Db, raw_code: &str) -> Result<PublicInvite, AppError> {
+    let code = InviteCode::parse(raw_code).map_err(|_| AppError::InviteInvalid)?;
+    let invite = invites::find_by_code(db, code.as_str())
+        .await?
+        .ok_or(AppError::InviteInvalid)?;
+
+    terms(&invite).guard_redeemable(OffsetDateTime::now_utc())?;
+
+    let event = events::find(db, invite.event_id)
+        .await?
+        .ok_or(AppError::InviteInvalid)?;
+
+    let status = observed_status(&event, OffsetDateTime::now_utc());
+    gathr_domain::event::guard_accepts_rsvps(status)?;
+
+    let host = users::find(db, event.host_id)
+        .await?
+        .ok_or(AppError::NotFound)?;
+    let going_guests = gathr_infra_db::rsvps::going_guest_count(db, event.id).await?;
+
+    Ok(PublicInvite {
+        host_first_name: first_name(&host.display_name),
+        invite,
+        event,
+        going_guests,
+    })
+}
+
+pub async fn list(db: &Db, event_id: Uuid, actor_id: Uuid) -> Result<Vec<InviteRecord>, AppError> {
+    let event = events::find(db, event_id)
+        .await?
+        .ok_or(AppError::NotFound)?;
+    if event.host_id != actor_id {
+        return Err(AppError::Forbidden);
+    }
+    Ok(invites::list_for_event(db, event_id).await?)
+}
+
+pub fn terms(invite: &InviteRecord) -> InviteTerms {
+    InviteTerms {
+        max_uses: invite.max_uses,
+        uses: invite.uses,
+        expires_at: invite.expires_at,
+    }
+}
+

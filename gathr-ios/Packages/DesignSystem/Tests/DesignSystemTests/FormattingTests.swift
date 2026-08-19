@@ -101,3 +101,21 @@ func theCountdownPillReadsNaturallyAtEveryScale(from: String, expected: String) 
     ("2026-09-08T12:00:00Z", "Good afternoon"),
     ("2026-09-08T18:00:00Z", "Good evening"),
 ])
+func theGreetingFollowsLagosLocalTime(instant: String, expected: String) {
+    #expect(EventFormatting.greeting(at: date(instant), timezone: lagos) == expected)
+}
+
+@Test func everyCategoryResolvesToACompleteStyle() {
+    for category in EventCategory.allCases {
+        #expect(!category.style.label.isEmpty)
+        #expect(!category.style.symbol.isEmpty)
+    }
+}
+
+@Test func everyRsvpStatusHasUserFacingCopy() {
+    for status in RSVPStatus.allCases {
+        #expect(!status.label.isEmpty)
+        #expect(!status.symbol.isEmpty)
+    }
+    #expect(RSVPStatus.declined.label == "Can't go")
+}

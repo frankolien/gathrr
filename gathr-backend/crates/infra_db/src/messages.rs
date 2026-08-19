@@ -57,3 +57,37 @@ pub async fn insert(
     .map_err(DbError::from_sqlx)
 }
 
+pub async fn page(
+    db: &Db,
+    event_id: Uuid,
+    after_seq: i64,
+    limit: i64,
+) -> Result<Vec<MessageRecord>, DbError> {
+    sqlx::query_as!(
+        MessageRecord,
+        r#"SELECT m.id, m.event_id, m.sender_id,
+                  u.display_name AS sender_display_name,
+                  m.seq, m.body, m.created_at
+           FROM messages m
+           JOIN users u ON u.id = m.sender_id
+           WHERE m.event_id = $1 AND m.seq > $2
+           ORDER BY m.seq ASC
+           LIMIT $3"#,
+        event_id,
+        after_seq,
+        limit
+    )
+    .fetch_all(db)
+    .await
+    .map_err(DbError::from_sqlx)
+}
+
+pub async fn latest_seq(db: &Db, event_id: Uuid) -> Result<i64, DbError> {
+    sqlx::query_scalar!(
+        r#"SELECT COALESCE(MAX(seq), 0) AS "seq!" FROM messages WHERE event_id = $1"#,
+        event_id
+    )
+    .fetch_one(db)
+    .await
+    .map_err(DbError::from_sqlx)
+}

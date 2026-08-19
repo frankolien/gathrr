@@ -113,3 +113,95 @@ async fn concurrent_rsvps_never_oversell_the_event() {
     assert_eq!(seats, capacity, "the stored seat count must match capacity");
 }
 
+#[tokio::test]
+async fn plus_ones_consume_seats_and_the_actor_is_not_double_counted() {
+    let db = pool().await;
+    let host = user(&db, "Amara Chukwu").await;
+    let event_id = event_with_capacity(&db, host, Some(4)).await;
+
+    let first = user(&db, "Tunde Bello").await;
+    let view = rsvps::submit(&db, going(event_id, first, 2))
+        .await
+        .expect("three seats fit inside four");
+    assert_eq!(view.status, RsvpStatus::Going);
+    assert_eq!(view.seats_remaining, Some(1));
+
+    let second = user(&db, "Chidi Okonkwo").await;
+    let error = rsvps::submit(&db, going(event_id, second, 1))
+        .await
+        .expect_err("two more seats do not fit");
+    assert!(matches!(
+        error,
+        AppError::Domain(DomainError::CapacityExceeded { seats_short: 1 })
+    ));
+
+    let reduced = rsvps::submit(&db, going(event_id, first, 0))
+        .await
+        .expect("shrinking an existing rsvp must not be blocked by the seats it already holds");
+    assert_eq!(reduced.status, RsvpStatus::Going);
+    assert_eq!(reduced.seats_remaining, Some(3));
+}
+
+#[tokio::test]
+async fn a_waitlisted_guest_is_promoted_only_when_a_seat_frees() {
+    let db = pool().await;
+    let host = user(&db, "Amara Chukwu").await;
+    let event_id = event_with_capacity(&db, host, Some(1)).await;
+
+    let holder = user(&db, "Ngozi Eze").await;
+    rsvps::submit(&db, going(event_id, holder, 0))
+        .await
+        .expect("the first guest takes the only seat");
+
+    let waiting = user(&db, "Bola Ade").await;
+    let queued = rsvps::submit(
+        &db,
+        SubmitRsvp {
+            accept_waitlist: true,
+            ..going(event_id, waiting, 0)
+        },
+    )
+    .await
+    .expect("opting in must waitlist rather than fail");
+    assert_eq!(queued.status, RsvpStatus::Waitlisted);
+
+    let blocked = rsvps::promote(&db, event_id, host, waiting)
+        .await
+        .expect_err("promotion must fail while the event is still full");
+    assert!(matches!(
+        blocked,
+        AppError::Domain(DomainError::CapacityExceeded { .. })
+    ));
+
+    rsvps::submit(
+        &db,
+        SubmitRsvp {
+            status: RsvpStatus::Declined,
+            ..going(event_id, holder, 0)
+        },
+    )
+    .await
+    .expect("the holder gives up their seat");
+
+    let promoted = rsvps::promote(&db, event_id, host, waiting)
+        .await
+        .expect("promotion succeeds once a seat frees");
+    assert_eq!(promoted.status, RsvpStatus::Going);
+}
+
+#[tokio::test]
+async fn an_uncapped_event_admits_everyone() {
+    let db = pool().await;
+    let host = user(&db, "Amara Chukwu").await;
+    let event_id = event_with_capacity(&db, host, None).await;
+
+    for index in 0..8 {
+        let guest = user(&db, &format!("Open Guest {index}")).await;
+        let view = rsvps::submit(&db, going(event_id, guest, 2))
+            .await
+            .expect("an uncapped event never rejects");
+        assert_eq!(view.status, RsvpStatus::Going);
+        assert_eq!(view.seats_remaining, None);
+    }
+}
+

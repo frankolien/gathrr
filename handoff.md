@@ -1323,3 +1323,17 @@ Seed a demo dataset (`fixtures/demo.sql`) mirroring the mockups exactly — Amar
 
 ---
 
+## 19. Definition of Done and CI Gates
+
+A change is done when every one of these is true. CI enforces them; none is a matter of judgment.
+
+**Backend**: `cargo fmt --check` · `cargo clippy --all-targets -- -D warnings` · `cargo sqlx prepare --check` · unit tests on `domain` · a testcontainers integration test per endpoint covering the happy path, the auth failure, and at least one domain error · migrations apply forward on a clean database and the DDL matches the committed schema dump.
+
+**iOS**: builds in Swift 6 language mode with **zero concurrency warnings** · `swift-format` clean · Swift Testing suite green · snapshot tests for every `DesignSystem` component across light/dark × standard/AX3 · no force-unwraps outside tests (lint-enforced) · asset budgets (14.1) verified.
+
+**Cross-cutting**: a new endpoint updates the table in 2.11/12.3 in the same commit · a new error code lands in 12.2 · a new user-facing string lands in the string catalog · a new mutating endpoint honors `Idempotency-Key` · no PII in any log line (a serialization test asserts phone never appears in a DTO) · CLAUDE.md rules hold: no comments, no dead code, no file over ~300 lines.
+
+**Release**: p95 read latency under 200ms measured from `jnb` · crash-free sessions above 99.5% · accessibility audit passes with VoiceOver on the five MVP screens.
+
+---
+

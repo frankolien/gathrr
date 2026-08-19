@@ -10,3 +10,6 @@ CREATE TABLE identities (
   UNIQUE (provider, subject)
 );
 
+CREATE INDEX identities_user_idx ON identities(user_id);
+
+ALTER TABLE users DROP COLUMN apple_sub;

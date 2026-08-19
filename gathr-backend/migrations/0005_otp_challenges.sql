@@ -11,3 +11,6 @@ CREATE TABLE otp_challenges (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE INDEX otp_pending_idx
+  ON otp_challenges(channel, destination, created_at DESC)
+  WHERE consumed_at IS NULL;

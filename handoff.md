@@ -1478,3 +1478,65 @@ Once this lands, every `host_id = $user` authorization check becomes a membershi
 
 ---
 
+## 22. Feature Doctrine: What to Build and What to Refuse
+
+### 22.1 The Reframe
+
+"Enterprise level" is routinely misread as "more features." The opposite is true. Large product organizations ship *fewer* surfaces than small teams do, with far more depth per surface, on top of an operational layer that never appears in a demo. What distinguishes a Meta or Apple release from a well-built indie app is not the feature count — it is that the product cannot lose your data, a support agent can repair a broken event without an engineer, a bad release is killable in sixty seconds, and the unglamorous obligations (calendar export, account deletion, notification preferences, accessibility) are simply present.
+
+The corollary is that the **refuse list matters more than the build list**. Every feature added to an early product is a permanent tax on every subsequent feature: more surface to migrate, more states to test, more to moderate, more to support, more to keep accessible in two themes and four Dynamic Type sizes. Gathr's advantage is a single tight loop — create, share, RSVP, attend. Anything that does not deepen that loop or make it survivable at scale is a liability priced as a feature.
+
+The three questions that gate every proposal:
+
+1. Does it deepen the core loop, or widen the product? Widening is refused by default until the loop is proven.
+2. Would its absence be noticed by a host running their fifth event? If not, it is not depth, it is decoration.
+3. What does it cost *forever* — moderation, support, migration, compliance? Compare that to the one-time build cost, which is always the smaller number.
+
+### 22.2 Build — in this order
+
+| Feature | Why it earns its place | Phase |
+|---|---|---|
+| **Feature flags + remote kill switch** | The single highest-leverage thing to build first. Without it, every mistake requires a 24-48h App Store review to undo. Every feature ships behind a flag; every flag has a documented owner and removal date | 0 |
+| **Min-supported-client + forced upgrade** | Once five app versions are live, every API change becomes a compatibility matrix. Cheap now, near-impossible to retrofit | 0 |
+| **Server-driven config** | Reminder cadence, capacity ceilings, plus-one defaults, invite-page copy, category list. Anything you would otherwise need a release to change | 0 |
+| **Admin / support console** | The clearest tell of an indie product is that nobody can fix anything without a deploy. Look up a user, look up an event, resend an invite, correct a timezone, refund a mistake, promote from waitlist, shadow-delete a message. Build it ugly and early | 2 |
+| **Calendar integration** (add to Apple/Google Calendar on RSVP) | Highest value-to-effort ratio in the entire product. It puts your event in the surface people actually check, and it is the top reason RSVPs convert to attendance | 3 |
+| **Co-hosts** | Real events have more than one organizer. Apple Invites shipped up to five. Already scaffolded in migration 0007 | 3 (V1) |
+| **Recurring events** | "Sunday Super Club" is literally in your own mockup. Game nights and dinner clubs repeat; making a host re-create the event weekly is the reason they churn | V1 |
+| **Event duplication** | The 30-second version of recurring events. Ship it first | 2 |
+| **Post-event photo album** | The strongest retention hook in this category and the reason people reopen the app after the event. Apple ships shared albums for exactly this reason | V1 |
+| **Host broadcast messaging** | Partiful's text blast is a core host tool, not a chat feature. Distinct from Section 10 chat and much cheaper (D3) | 2 |
+| **Notification preference center** | Per-event mute plus per-type toggles. Without it, your only user lever is disabling notifications entirely — and they never come back | 3 |
+| **Guest list export (CSV)** | Boring, requested constantly, trivial to build | 3 |
+| **Account deletion + data export** | Non-negotiable for App Store review and NDPA/GDPR (13.3). Build in Phase 1, not at submission | 1 |
+| **Attendance check-in** | The only source for a headline metric (8.10) | 3 |
+| **SLOs + error budget** | Turns reliability from a vibe into a number that can stop feature work (24.3) | 3 |
+| **Backup + tested restore** | An untested backup is not a backup. Drill it quarterly | 2 |
+| **Experimentation (A/B)** | Only once there is traffic to power it. Before that it is theater | V2 |
+
+### 22.3 Refuse — with the condition that would change the answer
+
+| Feature | Verdict | Why | What would unlock it |
+|---|---|---|---|
+| **Social graph — friends, followers, profiles** | Refuse | The invite link *is* the graph. A follow graph adds privacy surface, moderation load, and an empty-state problem, and it competes with the thing that actually works | Never for this product |
+| **Explore / discovery feed** | Refuse for now | Classic cold-start death: no supply, so no reason to look; and it converts a private-invite product into a public-content product with all the moderation obligations that implies | 500+ public events/week in one city, with a moderation queue staffed first |
+| **Ticketing / payments** | Refuse in V1 | In Nigeria this means settlement, chargebacks, refunds, KYC, tax, and CBN-regulated flows via Paystack or Flutterwave. It is a company, not a feature, and it will consume the whole team | 50+ hosts requesting it in-product, and a person who owns payments full-time |
+| **1:1 direct messages** | Refuse | Event chat is bounded by a guest list and self-policing. Open DMs create an unbounded harassment surface that demands a real T&S team on day one | Never without dedicated T&S headcount |
+| **Stories, likes, public feeds, comments** | Refuse | You are not a social network; competing on that axis is competing with Meta's budget | Never |
+| **Android + web app in parallel** | Refuse | Web *RSVP* (Section 9) is mandatory; a web *app* is a second product. Two clients before one is loved halves the depth of both | iOS retention proven, then Android — never simultaneously |
+| **Live video / streaming** | Refuse | Wrong product, ruinous unit economics | Never |
+| **AI event planner as a headline pillar** | Refuse as a pillar | AI cover-image generation and smart-suggest invite copy are good *inside* the create flow (8.6). An "AI assistant" tab is a demo, not a product | Fine as a create-flow enhancement, never as a surface |
+| **Gamification — badges, streaks, points** | Refuse | Optimizes for the wrong loop and cheapens a product about real gatherings | Never |
+| **Public API** | Refuse in V1 | A public API is a permanent compatibility contract. You cannot iterate on the schema and support third parties at the same time | Enterprise track activation (Section 25) |
+| **Custom domains / white-label** | Refuse | Pure B2B surface with real DNS and TLS operations behind it | Section 25 |
+| **SSO / SAML / SCIM** | Refuse | Zero value until a paying organization exists | Section 25 |
+| **Multi-language** | Defer | Localization *infrastructure* ships in Phase 0 (15.2); actual translations wait until en-NG is loved | Second market committed |
+| **Self-hosted push, image CDN, analytics, or chat infra** | Refuse | Rent all four. Building them is undifferentiated work that big companies do only at a scale you do not have | Vendor cost exceeds an engineer's salary |
+| **NFT / blockchain tickets** | Refuse | No | No |
+
+### 22.4 The Sunset Rule
+
+Big organizations kill features; small teams accumulate them. Every flagged feature gets a review at 90 days against a pre-declared success metric. Below the bar, it is removed — not disabled, not left dark behind a flag. Flag debt is real debt: a flag with no owner and no removal date is a permanent untested code path. Cap live flags at 20 and enforce it in CI.
+
+---
+

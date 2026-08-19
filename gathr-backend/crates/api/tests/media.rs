@@ -125,3 +125,58 @@ async fn an_upload_ticket_carries_a_signature_but_never_the_api_secret() {
     );
 }
 
+#[actix_web::test]
+async fn an_unsigned_caller_cannot_get_an_upload_ticket() {
+    let state = state().await;
+    let app = service!(state);
+
+    let response = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/v1/media/sign")
+            .set_json(json!({ "purpose": "cover" }))
+            .to_request(),
+    )
+    .await;
+
+    assert_eq!(response.status(), 401);
+}
+
+#[actix_web::test]
+async fn uploads_are_confined_to_the_folders_this_app_owns() {
+    let state = state().await;
+    let app = service!(state);
+    let token = sign_in!(app, "Amara Chukwu");
+
+    let response = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/v1/media/sign")
+            .insert_header(("authorization", format!("Bearer {token}")))
+            .set_json(json!({ "purpose": "../../etc/passwd" }))
+            .to_request(),
+    )
+    .await;
+
+    assert_eq!(response.status(), 422);
+}
+
+#[actix_web::test]
+async fn only_an_image_can_be_recorded() {
+    let state = state().await;
+    let app = service!(state);
+    let token = sign_in!(app, "Amara Chukwu");
+
+    let response = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/v1/media")
+            .insert_header(("authorization", format!("Bearer {token}")))
+            .set_json(json!({ "public_id": "gathr/covers/x", "content_type": "application/pdf" }))
+            .to_request(),
+    )
+    .await;
+
+    assert_eq!(response.status(), 422);
+}
+

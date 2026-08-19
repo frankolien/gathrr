@@ -1080,3 +1080,80 @@ Guests who RSVP'd from the web have no device token. Their `event_cancelled` and
 
 ---
 
+## 12. API Conventions and Error Catalog
+
+### 12.1 Conventions
+
+- All timestamps RFC 3339 UTC with `Z`. The client never sends a device clock reading as an authoritative time; the server stamps `updated_at`.
+- Cursors are opaque base64 of `{seq|starts_at, id}`. Clients must not parse them.
+- Every response carries `X-Request-Id`, echoed into the error envelope and every `tracing` span.
+- `GET` detail endpoints support `ETag` / `If-None-Match`; a 304 is the cheapest possible response on a metered connection.
+- List endpoints cap at `limit=50`, default 20.
+- `Idempotency-Key` is required on `POST /v1/events`, `/rsvp`, `/messages`, `/invites`, `/checkin`. A missing key on these returns `idempotency_key_required` rather than silently proceeding.
+- Stored idempotency records expire after 24 hours; a replay after expiry is treated as a new request.
+
+### 12.2 Error Catalog
+
+| Code | HTTP | Client behavior |
+|---|---|---|
+| `unauthenticated` | 401 | Refresh once, then present S2 |
+| `token_reuse_detected` | 401 | Wipe the token family, force re-auth (2.3) |
+| `forbidden` | 403 | Show "Only the host can do this" |
+| `not_found` | 404 | Generic not-found; never distinguishes "deleted" from "never existed" |
+| `invite_invalid` | 404 | "This invite link isn't valid" |
+| `invite_expired` | 410 | "This invite has expired — ask the host for a new one" |
+| `invite_exhausted` | 409 | "This invite has been used up" |
+| `capacity_exceeded` | 409 | Offer the waitlist inline (8.5) |
+| `event_cancelled` | 409 | Dismiss the RSVP surface, drop queued writes |
+| `event_ended` | 409 | The event is over; hide RSVP entirely rather than failing on submit |
+| `message_invalid` | 422 | Empty after trimming, or over 2 000 characters — a rejected message never burns a sequence number |
+| `delivery_failed` | 503 | The mail provider refused the code; nothing redeemable was stored, so the caller may retry |
+| `plus_ones_exceeded` | 422 | Clamp the stepper, explain the limit |
+| `validation_failed` | 422 | Field-level errors under `error.fields` |
+| `idempotency_key_required` | 400 | Programmer error; must fail CI, never ship |
+| `idempotency_conflict` | 409 | Same key, different payload — do not retry |
+| `rate_limited` | 429 | Honor `Retry-After`; never busy-loop |
+| `identity_rejected` | 401 | The provider token failed verification — re-run the provider sheet with a fresh nonce, never retry the same token |
+| `provider_unavailable` | 503 | That provider is not configured or its key set is unreachable; offer the other provider |
+| `otp_invalid` | 401 | Decrement the visible attempt counter |
+| `otp_attempts_exceeded` | 429 | Lock the destination, force a new request |
+| `internal` | 500 | Show `X-Request-Id` in the error UI for support |
+
+### 12.3 Endpoints Added Beyond 2.11
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/v1/sync?since=` | Delta sync (10.2) |
+| POST | `/v1/auth/oauth` | Verify an Apple or Google ID token and issue a Gathr token pair (2.3, D11) |
+| POST | `/v1/auth/otp/request` | Issue a 6-digit code to a phone or email (8.12) |
+| POST | `/v1/auth/otp/verify` | Redeem a code and issue a token pair (8.12) |
+| PATCH | `/v1/me` | Change the display name guests see (S11) |
+| POST | `/v1/auth/claim` | Merge guest history (9.3) |
+| GET | `/v1/invites/{code}/public` | Unauthenticated event projection |
+| POST | `/i/{code}/rsvp` | Web guest RSVP |
+| PATCH | `/v1/events/{id}` | Edit an event; omit a field to keep it, send null to clear it |
+| DELETE | `/v1/events/{id}/guests/{uid}` | Remove a guest and return their seats |
+| POST | `/v1/auth/logout` | Revoke every refresh token the account holds |
+| POST | `/v1/media/sign` | Signed Cloudinary upload ticket (D-media) |
+| POST | `/v1/media` | Record a completed upload |
+| PUT | `/v1/events/{id}/cover/{media_id}` | Attach a recorded upload as the cover |
+| POST | `/v1/devices` | Register an APNs token |
+| DELETE | `/v1/devices/{id}` | Forget a device |
+| POST | `/v1/events/{id}/mute` | Silence one event without unregistering |
+| GET | `/v1/notifications?before=&limit=` | In-app activity feed, newest first, with the unread badge count |
+| POST | `/v1/notifications/read` | Clear the badge; an empty `ids` array clears everything |
+| GET | `/ready` | Readiness: 200 only when Postgres answers |
+| POST | `/v1/events/{id}/messages` | Post to the event thread (host or any guest with an RSVP) |
+| GET | `/v1/events/{id}/messages?after_seq=&limit=` | Read the thread, paged by seq |
+| GET | `/v1/events/{id}/stream` | WebSocket; each new message arrives as one JSON text frame |
+| POST | `/v1/events/{id}/guests/{uid}/promote` | Waitlist promotion |
+| POST | `/v1/events/{id}/checkin` | Attendance scan (8.10) |
+| POST | `/v1/events/{id}/mute` | Per-event notification mute |
+| POST | `/v1/reports` | Report a message or user |
+| POST | `/v1/blocks` | Block a user |
+| DELETE | `/v1/me` | Account deletion (13.4) |
+| GET | `/v1/me/export` | Data export (13.4) |
+| GET | `/health`, `/ready` | Liveness and readiness |
+
+---
+

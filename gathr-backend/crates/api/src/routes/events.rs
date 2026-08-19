@@ -69,3 +69,50 @@ pub async fn publish(
     Ok(HttpResponse::Ok().json(EventSummary::from(record)))
 }
 
+pub async fn cancel(
+    state: web::Data<AppState>,
+    user: AuthUser,
+    path: web::Path<Uuid>,
+) -> Result<HttpResponse, ApiError> {
+    let record = events::cancel(&state.db, path.into_inner(), user.0).await?;
+    Ok(HttpResponse::Ok().json(EventSummary::from(record)))
+}
+
+pub async fn feed(
+    state: web::Data<AppState>,
+    user: AuthUser,
+    query: web::Query<FeedQuery>,
+) -> Result<HttpResponse, ApiError> {
+    let records = events::feed(&state.db, user.0, &query.filter).await?;
+    let summaries: Vec<EventSummary> = records.into_iter().map(EventSummary::from).collect();
+    Ok(HttpResponse::Ok().json(summaries))
+}
+
+pub async fn edit(
+    state: web::Data<AppState>,
+    user: AuthUser,
+    path: web::Path<Uuid>,
+    body: web::Json<EditEventRequest>,
+) -> Result<HttpResponse, ApiError> {
+    let body = body.into_inner();
+    let summary = events::edit(
+        &state.db,
+        path.into_inner(),
+        user.0,
+        events::EditEvent {
+            title: body.title,
+            category: body.category,
+            description: body.description,
+            location_name: body.location_name,
+            starts_at: body.starts_at,
+            ends_at: body.ends_at,
+            timezone: body.timezone,
+            capacity: body.capacity,
+            max_plus_ones: body.max_plus_ones,
+        },
+    )
+    .await?;
+
+    Ok(HttpResponse::Ok().json(EventSummary::from(summary)))
+}
+

@@ -18,3 +18,9 @@ CREATE TABLE notifications (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE INDEX idx_notifications_recent ON notifications(user_id, created_at DESC);
+CREATE INDEX idx_notifications_unread ON notifications(user_id) WHERE read_at IS NULL;
+
+CREATE UNIQUE INDEX notifications_unread_chat_key
+  ON notifications(user_id, event_id)
+  WHERE read_at IS NULL AND kind = 'message_posted';

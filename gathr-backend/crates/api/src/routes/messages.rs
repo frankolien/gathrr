@@ -46,3 +46,61 @@ pub async fn post(
     Ok(HttpResponse::Created().json(payload))
 }
 
+pub async fn list(
+    state: web::Data<AppState>,
+    user: AuthUser,
+    path: web::Path<Uuid>,
+    query: web::Query<MessagePage>,
+) -> Result<HttpResponse, ApiError> {
+    let event_id = path.into_inner();
+    let views = messages::page(
+        &state.db,
+        event_id,
+        user.0,
+        query.after_seq.unwrap_or(0),
+        query.limit,
+    )
+    .await?;
+
+    let latest_seq = views
+        .last()
+        .map(|view| view.seq)
+        .unwrap_or(messages::latest_seq(&state.db, event_id, user.0).await?);
+
+    Ok(HttpResponse::Ok().json(MessageListResponse {
+        latest_seq,
+        messages: views.into_iter().map(MessageResponse::from).collect(),
+    }))
+}
+
+pub async fn stream(
+    state: web::Data<AppState>,
+    user: AuthUser,
+    path: web::Path<Uuid>,
+    request: HttpRequest,
+    stream: web::Payload,
+) -> Result<HttpResponse, ApiError> {
+    let event_id = path.into_inner();
+    messages::authorize_read(&state.db, event_id, user.0).await?;
+
+    let (response, session, mut incoming) = actix_ws::handle(&request, stream).map_err(|_| {
+        ApiError(AppError::Validation(
+            "this is not a websocket request".to_owned(),
+        ))
+    })?;
+
+    let hub = state.hub.clone();
+    let subscriber_id = hub.join(event_id, session.clone()).await;
+
+    actix_web::rt::spawn(async move {
+        while let Some(Ok(message)) = incoming.next().await {
+            if let actix_ws::Message::Close(_) = message {
+                break;
+            }
+        }
+        hub.leave(event_id, subscriber_id).await;
+        let _ = session.close(None).await;
+    });
+
+    Ok(response)
+}

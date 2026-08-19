@@ -74,3 +74,34 @@ pub async fn page(
     Ok(records.into_iter().map(MessageView::from).collect())
 }
 
+pub async fn latest_seq(db: &Db, event_id: Uuid, reader_id: Uuid) -> Result<i64, AppError> {
+    authorize_read(db, event_id, reader_id).await?;
+    Ok(messages::latest_seq(db, event_id).await?)
+}
+
+pub async fn authorize_read(db: &Db, event_id: Uuid, reader_id: Uuid) -> Result<(), AppError> {
+    let is_host = events::can_manage(db, event_id, reader_id).await?;
+    let is_participant = rsvps::find(db, event_id, reader_id).await?.is_some();
+
+    if is_host || is_participant {
+        Ok(())
+    } else {
+        Err(AppError::Forbidden)
+    }
+}
+
+async fn authorize_post(
+    db: &Db,
+    event_id: Uuid,
+    sender_id: Uuid,
+    right: PostingRight,
+) -> Result<(), AppError> {
+    let is_host = events::can_manage(db, event_id, sender_id).await?;
+    let is_participant = rsvps::find(db, event_id, sender_id).await?.is_some();
+
+    if may_post(right, is_host, is_participant) {
+        Ok(())
+    } else {
+        Err(AppError::Forbidden)
+    }
+}

@@ -1,0 +1,6 @@
+ALTER TABLE users ADD COLUMN is_guest BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE users ADD COLUMN claimed_at TIMESTAMPTZ;
+
+ALTER TABLE users DROP CONSTRAINT users_phone_key;
+ALTER TABLE users DROP CONSTRAINT users_email_key;
+

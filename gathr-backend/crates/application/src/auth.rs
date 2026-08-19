@@ -35,3 +35,72 @@ pub struct TokenPair {
     pub expires_in_seconds: i64,
 }
 
+pub fn random_token() -> String {
+    let mut bytes = [0u8; 32];
+    rand::thread_rng().fill_bytes(&mut bytes);
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+pub fn hash_token(token: &str) -> String {
+    let digest = Sha256::digest(token.as_bytes());
+    digest.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+pub fn issue_access(settings: &TokenSettings, user_id: Uuid) -> Result<String, AppError> {
+    let expiry = OffsetDateTime::now_utc() + Duration::minutes(settings.access_ttl_minutes);
+    let claims = Claims {
+        sub: user_id.to_string(),
+        jti: Uuid::new_v4().to_string(),
+        iss: ISSUER.to_owned(),
+        aud: AUDIENCE.to_owned(),
+        exp: expiry.unix_timestamp(),
+    };
+    encode(
+        &Header::new(Algorithm::HS256),
+        &claims,
+        &EncodingKey::from_secret(settings.secret.as_bytes()),
+    )
+    .map_err(|_| AppError::Unauthenticated)
+}
+
+pub fn verify_access(settings: &TokenSettings, token: &str) -> Result<Uuid, AppError> {
+    let mut validation = Validation::new(Algorithm::HS256);
+    validation.set_issuer(&[ISSUER]);
+    validation.set_audience(&[AUDIENCE]);
+
+    let data = decode::<Claims>(
+        token,
+        &DecodingKey::from_secret(settings.secret.as_bytes()),
+        &validation,
+    )
+    .map_err(|_| AppError::Unauthenticated)?;
+
+    Uuid::parse_str(&data.claims.sub).map_err(|_| AppError::Unauthenticated)
+}
+
+pub async fn issue_pair(
+    db: &Db,
+    settings: &TokenSettings,
+    user_id: Uuid,
+    family_id: Uuid,
+) -> Result<TokenPair, AppError> {
+    let refresh_token = random_token();
+    let expires_at = OffsetDateTime::now_utc() + Duration::days(settings.refresh_ttl_days);
+
+    tokens::insert_refresh(
+        db,
+        Uuid::new_v4(),
+        family_id,
+        user_id,
+        &hash_token(&refresh_token),
+        expires_at,
+    )
+    .await?;
+
+    Ok(TokenPair {
+        access_token: issue_access(settings, user_id)?,
+        refresh_token,
+        expires_in_seconds: settings.access_ttl_minutes * 60,
+    })
+}
+

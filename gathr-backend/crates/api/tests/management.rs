@@ -285,3 +285,13 @@ async fn logging_out_retires_every_refresh_token_the_session_family_held() {
     );
 }
 
+#[actix_web::test]
+async fn readiness_reports_the_database_it_depends_on() {
+    let state = state().await;
+    let app = service!(state);
+
+    let response =
+        test::call_service(&app, test::TestRequest::get().uri("/ready").to_request()).await;
+    assert_eq!(response.status(), 200);
+    assert_eq!(body_json(response).await["status"], "ready");
+}

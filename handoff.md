@@ -549,3 +549,6 @@ Wrapped in a transaction that first locks the event row and checks the capacity 
 ## Commits
 - Conventional Commits: feat:, fix:, refactor:, test:, chore:, docs:. Imperative mood. One logical change per commit.
 
+## Folder structure
+- Enforce the workspace layout (Section 2.1) and SPM layout (Section 3.2). New code goes in the correct crate/package or it does not merge.
+

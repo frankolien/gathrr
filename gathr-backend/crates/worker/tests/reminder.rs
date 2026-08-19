@@ -121,3 +121,73 @@ async fn muting_an_event_silences_it_without_unregistering_the_device() {
     );
 }
 
+#[tokio::test]
+async fn a_reminder_is_claimed_once_so_two_workers_cannot_both_send_it() {
+    let _sweeps_run_one_at_a_time = A_SWEEP_CLAIMS_EVERY_DUE_JOB_IN_THE_DATABASE.lock().await;
+    let db = pool().await;
+    let now = OffsetDateTime::now_utc();
+    let (host, event) = seed_event(&db, now + Duration::hours(3)).await;
+    devices::upsert(&db, host, &token(), "sandbox")
+        .await
+        .unwrap();
+    reminders::schedule(&db, event, HOURS_BEFORE, now - Duration::minutes(1))
+        .await
+        .unwrap();
+
+    drain_once(&db, &Recorder::default(), now).await.unwrap();
+
+    let second = Recorder::default();
+    drain_once(&db, &second, now).await.unwrap();
+
+    assert!(
+        second.for_event(event).is_empty(),
+        "a sent reminder must never go out twice"
+    );
+}
+
+#[tokio::test]
+async fn a_reminder_that_is_not_due_yet_is_left_alone() {
+    let _sweeps_run_one_at_a_time = A_SWEEP_CLAIMS_EVERY_DUE_JOB_IN_THE_DATABASE.lock().await;
+    let db = pool().await;
+    let now = OffsetDateTime::now_utc();
+    let (host, event) = seed_event(&db, now + Duration::hours(30)).await;
+    devices::upsert(&db, host, &token(), "sandbox")
+        .await
+        .unwrap();
+    reminders::schedule(&db, event, DAY_BEFORE, now + Duration::hours(6))
+        .await
+        .unwrap();
+
+    let recorder = Recorder::default();
+    drain_once(&db, &recorder, now).await.unwrap();
+
+    assert!(
+        recorder.for_event(event).is_empty(),
+        "a future reminder waits its turn"
+    );
+    assert_eq!(
+        reminders::pending_kinds(&db, event).await.unwrap(),
+        vec![DAY_BEFORE.to_owned()]
+    );
+}
+
+#[tokio::test]
+async fn an_event_with_nobody_to_notify_still_settles_the_job() {
+    let _sweeps_run_one_at_a_time = A_SWEEP_CLAIMS_EVERY_DUE_JOB_IN_THE_DATABASE.lock().await;
+    let db = pool().await;
+    let now = OffsetDateTime::now_utc();
+    let (_, event) = seed_event(&db, now + Duration::hours(3)).await;
+    reminders::schedule(&db, event, HOURS_BEFORE, now - Duration::minutes(1))
+        .await
+        .unwrap();
+
+    drain_once(&db, &Recorder::default(), now).await.unwrap();
+
+    assert!(
+        reminders::pending_kinds(&db, event)
+            .await
+            .unwrap()
+            .is_empty(),
+        "a job with nobody to notify must not stay pending forever"
+    );
+}

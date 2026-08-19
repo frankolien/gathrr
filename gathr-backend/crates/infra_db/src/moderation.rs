@@ -55,3 +55,27 @@ pub async fn unblock(db: &Db, blocker_id: Uuid, blocked_id: Uuid) -> Result<bool
     .map_err(DbError::from_sqlx)
 }
 
+pub async fn blocked_by(db: &Db, blocker_id: Uuid) -> Result<Vec<Uuid>, DbError> {
+    sqlx::query_scalar!(
+        r#"SELECT blocked_id FROM blocks WHERE blocker_id = $1 ORDER BY created_at DESC"#,
+        blocker_id
+    )
+    .fetch_all(db)
+    .await
+    .map_err(DbError::from_sqlx)
+}
+
+pub async fn either_way(db: &Db, one: Uuid, other: Uuid) -> Result<bool, DbError> {
+    sqlx::query_scalar!(
+        r#"SELECT EXISTS (
+             SELECT 1 FROM blocks
+             WHERE (blocker_id = $1 AND blocked_id = $2)
+                OR (blocker_id = $2 AND blocked_id = $1)
+           ) AS "blocked!""#,
+        one,
+        other
+    )
+    .fetch_one(db)
+    .await
+    .map_err(DbError::from_sqlx)
+}

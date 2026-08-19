@@ -7,6 +7,7 @@ pub mod idempotency;
 pub mod identities;
 pub mod invites;
 pub mod media;
+pub mod merge;
 pub mod messages;
 pub mod moderation;
 pub mod notifications;

@@ -108,3 +108,14 @@ pub async fn insert_verified(
     .await
     .map_err(DbError::from_sqlx)
 }
+
+pub async fn find_in_tx(tx: &mut Tx<'_>, id: Uuid) -> Result<Option<UserRecord>, DbError> {
+    sqlx::query_as!(
+        UserRecord,
+        r#"SELECT id, display_name, phone, is_guest, bio FROM users WHERE id = $1"#,
+        id
+    )
+    .fetch_optional(&mut **tx)
+    .await
+    .map_err(DbError::from_sqlx)
+}

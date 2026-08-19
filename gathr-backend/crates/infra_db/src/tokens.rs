@@ -117,3 +117,19 @@ pub async fn revoke_all_for_user(db: &Db, user_id: Uuid) -> Result<(), DbError> 
     .map(|_| ())
     .map_err(DbError::from_sqlx)
 }
+
+pub async fn find_guest_session_in_tx(
+    tx: &mut Tx<'_>,
+    token_hash: &str,
+) -> Result<Option<Uuid>, DbError> {
+    let row = sqlx::query!(
+        r#"SELECT user_id FROM guest_sessions
+           WHERE token_hash = $1 AND expires_at > now()"#,
+        token_hash
+    )
+    .fetch_optional(&mut **tx)
+    .await
+    .map_err(DbError::from_sqlx)?;
+
+    Ok(row.map(|row| row.user_id))
+}

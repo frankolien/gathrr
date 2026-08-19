@@ -193,3 +193,95 @@ async fn an_event_cannot_be_edited_to_end_before_it_starts() {
     assert_eq!(response.status(), 422);
 }
 
+#[actix_web::test]
+async fn only_the_host_can_edit_an_event() {
+    let state = state().await;
+    let app = service!(state);
+    let (host, _) = sign_in!(app, "Amara Chukwu");
+    let (stranger, _) = sign_in!(app, "Passing Stranger");
+    let event = publish_event!(app, host, 40);
+
+    let response = patch_event!(app, stranger, event, json!({ "title": "Mine Now" }));
+    assert_eq!(response.status(), 403);
+}
+
+#[actix_web::test]
+async fn a_host_can_remove_a_guest_and_the_seat_comes_back() {
+    let state = state().await;
+    let app = service!(state);
+    let (host, _) = sign_in!(app, "Amara Chukwu");
+    let (guest, _) = sign_in!(app, "Tunde Bello");
+    let event = publish_event!(app, host, 10);
+
+    rsvp!(app, guest, event, 1);
+
+    let guest_id = {
+        let listed = test::call_service(
+            &app,
+            test::TestRequest::get()
+                .uri(&format!("/v1/events/{event}/guests"))
+                .insert_header(("authorization", format!("Bearer {host}")))
+                .to_request(),
+        )
+        .await;
+        let body = body_json(listed).await;
+        assert_eq!(body["seats_taken"], 2);
+        Uuid::parse_str(body["guests"][0]["user_id"].as_str().unwrap()).unwrap()
+    };
+
+    let removed = test::call_service(
+        &app,
+        test::TestRequest::delete()
+            .uri(&format!("/v1/events/{event}/guests/{guest_id}"))
+            .insert_header(("authorization", format!("Bearer {host}")))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(removed.status(), 204);
+
+    let after = test::call_service(
+        &app,
+        test::TestRequest::get()
+            .uri(&format!("/v1/events/{event}/guests"))
+            .insert_header(("authorization", format!("Bearer {host}")))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(
+        body_json(after).await["seats_taken"],
+        0,
+        "removing a guest must return their seats to the event"
+    );
+}
+
+#[actix_web::test]
+async fn logging_out_retires_every_refresh_token_the_session_family_held() {
+    let state = state().await;
+    let app = service!(state);
+    let (access, refresh) = sign_in!(app, "Amara Chukwu");
+
+    let out = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/v1/auth/logout")
+            .insert_header(("authorization", format!("Bearer {access}")))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(out.status(), 204);
+
+    let reused = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/v1/auth/refresh")
+            .set_json(json!({ "refresh_token": refresh }))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(
+        reused.status(),
+        401,
+        "a refresh token must be dead once its owner signs out"
+    );
+}
+

@@ -1540,3 +1540,20 @@ Big organizations kill features; small teams accumulate them. Every flagged feat
 
 ---
 
+## 23. Launch Gates
+
+Phases currently end when their features ship. That is a project plan, not a product plan, and it is how teams ship five half-working surfaces instead of one that converts. Replace with metric gates — a phase ends when its number is hit, and the next phase does not start until then.
+
+| Phase | Ships | Exit gate | Consequence of missing it |
+|---|---|---|---|
+| 0 — Foundations | Scaffold, CI, flags, config, deploy | Health check green from `jnb`; a flag flipped in production in under 60s; CI red on a deliberately broken commit | Nothing else starts. This gate is absolute |
+| 1 — Auth | Apple + OTP, deletion, export | Sign-in success above 95%; SMS delivery above 90% per network, or SMS cut and Apple-only shipped (14.2) | Cut OTP entirely rather than carrying a broken path forward |
+| 2 — Events + invites | Create, share, web RSVP, admin console | 100 real events created by non-team hosts; time-to-create p50 under 2 min; **invite-to-RSVP above 40%** | If conversion is under 40%, fix the invite loop. Do not proceed to RSVP polish or chat |
+| 3 — RSVP + reminders | Capacity, waitlist, push, check-in, calendar | RSVP-to-attendance measurable and above 60%; reminder open rate above 25% | Reminder cadence is wrong; tune it via server config before building more |
+| 4 — Chat | Bidirectional chat, WS | 30% of events with 3+ messages; D7 host retention up versus the pre-chat cohort | If chat does not move retention, it is not the differentiator — stop investing and revisit the thesis |
+| 5 — Hardening | Rate limits, SLOs, load tests, a11y | 99.9% over 30 days; p95 read under 200ms from Lagos; crash-free above 99.5%; a11y audit passed | Ship criteria for the App Store. No exceptions |
+
+The gate at Phase 2 is the important one. It is where most products in this category die, and it is the one that a feature-driven roadmap lets you sail straight past.
+
+---
+

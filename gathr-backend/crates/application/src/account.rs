@@ -23,3 +23,39 @@ pub struct Erasure {
     pub messages_redacted: u64,
 }
 
+pub async fn export(db: &Db, user_id: Uuid) -> Result<Export, AppError> {
+    let account = users::find(db, user_id).await?.ok_or(AppError::NotFound)?;
+
+    Ok(Export {
+        account,
+        hosted_events: account::hosted_events(db, user_id).await?,
+        rsvps: account::rsvps(db, user_id).await?,
+        messages: account::messages(db, user_id).await?,
+        identities: account::identities(db, user_id).await?,
+        blocked_user_ids: moderation::blocked_by(db, user_id).await?,
+    })
+}
+
+pub async fn erase(db: &Db, user_id: Uuid) -> Result<Erasure, AppError> {
+    users::find(db, user_id).await?.ok_or(AppError::NotFound)?;
+
+    let hosted = account::hosted_event_ids(db, user_id).await?;
+    let mut events_cancelled = 0;
+    for event_id in hosted {
+        if events::cancel(db, event_id, user_id).await.is_ok() {
+            events_cancelled += 1;
+        }
+    }
+
+    let messages_redacted = message_rows::redact_by_sender(db, user_id).await?;
+
+    account::erase(db, user_id)
+        .await?
+        .then_some(())
+        .ok_or(AppError::NotFound)?;
+
+    Ok(Erasure {
+        events_cancelled,
+        messages_redacted,
+    })
+}

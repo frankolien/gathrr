@@ -125,10 +125,11 @@ pub struct PostMessageRequest {
 pub struct MessageResponse {
     pub id: Uuid,
     pub event_id: Uuid,
-    pub sender_id: Uuid,
-    pub sender_display_name: String,
+    pub sender_id: Option<Uuid>,
+    pub sender_display_name: Option<String>,
     pub seq: i64,
     pub body: String,
+    pub redacted: bool,
     #[serde(with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
 }
@@ -142,6 +143,7 @@ impl From<gathr_application::messages::MessageView> for MessageResponse {
             sender_display_name: view.sender_display_name,
             seq: view.seq,
             body: view.body,
+            redacted: view.redacted,
             created_at: view.created_at,
         }
     }
@@ -437,4 +439,84 @@ pub struct NotificationFeedResponse {
 #[derive(Debug, Serialize)]
 pub struct UnreadCountResponse {
     pub unread: i64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ReportRequest {
+    pub subject: String,
+    pub subject_id: Uuid,
+    pub reason: String,
+    #[serde(default)]
+    pub detail: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ReportResponse {
+    pub id: Uuid,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BlockRequest {
+    pub user_id: Uuid,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BlockListResponse {
+    pub blocked_user_ids: Vec<Uuid>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ErasureResponse {
+    pub deleted: bool,
+    pub events_cancelled: usize,
+    pub messages_redacted: u64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ExportedEventResponse {
+    pub id: Uuid,
+    pub title: String,
+    #[serde(with = "time::serde::rfc3339")]
+    pub starts_at: OffsetDateTime,
+    pub status: String,
+    #[serde(with = "time::serde::rfc3339")]
+    pub created_at: OffsetDateTime,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ExportedRsvpResponse {
+    pub event_id: Uuid,
+    pub event_title: String,
+    pub status: String,
+    pub plus_ones: i32,
+    #[serde(with = "time::serde::rfc3339")]
+    pub created_at: OffsetDateTime,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ExportedMessageResponse {
+    pub event_id: Uuid,
+    pub event_title: String,
+    pub seq: i64,
+    pub body: String,
+    #[serde(with = "time::serde::rfc3339")]
+    pub created_at: OffsetDateTime,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ExportedIdentityResponse {
+    pub provider: String,
+    #[serde(with = "time::serde::rfc3339")]
+    pub created_at: OffsetDateTime,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ExportResponse {
+    pub exported_at: String,
+    pub account: MeResponse,
+    pub hosted_events: Vec<ExportedEventResponse>,
+    pub rsvps: Vec<ExportedRsvpResponse>,
+    pub messages: Vec<ExportedMessageResponse>,
+    pub identities: Vec<ExportedIdentityResponse>,
+    pub blocked_user_ids: Vec<Uuid>,
 }

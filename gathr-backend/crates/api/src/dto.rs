@@ -223,3 +223,142 @@ pub struct EventSummary {
     pub preview_guest_names: Vec<String>,
 }
 
+impl From<EventSummaryRecord> for EventSummary {
+    fn from(record: EventSummaryRecord) -> Self {
+        Self {
+            id: record.event.id,
+            title: record.event.title,
+            category: record.event.category,
+            location_name: record.event.location_name,
+            starts_at: record.event.starts_at,
+            ends_at: record.event.ends_at,
+            timezone: record.event.timezone,
+            status: record.event.status,
+            capacity: record.event.capacity,
+            going_guests: record.going_guests,
+            preview_guest_names: record.preview_guest_names,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct EventDetailResponse {
+    #[serde(flatten)]
+    pub summary: EventSummary,
+    pub description: Option<String>,
+    pub host_display_name: String,
+    pub observed_status: EventStatus,
+    pub going_guests: i32,
+    pub max_plus_ones: i32,
+    #[serde(with = "time::serde::rfc3339")]
+    pub server_time: OffsetDateTime,
+}
+
+impl From<EventDetail> for EventDetailResponse {
+    fn from(detail: EventDetail) -> Self {
+        let description = detail.event.description.clone();
+        let max_plus_ones = detail.event.max_plus_ones;
+        let going_guests = detail.going_guests;
+        Self {
+            summary: EventSummary::from(EventSummaryRecord {
+                event: detail.event,
+                going_guests,
+                preview_guest_names: detail.preview_guest_names,
+            }),
+            description,
+            host_display_name: detail.host_display_name,
+            observed_status: detail.observed_status,
+            going_guests: detail.going_guests,
+            max_plus_ones,
+            server_time: OffsetDateTime::now_utc(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct FeedQuery {
+    #[serde(default = "default_filter")]
+    pub filter: String,
+}
+
+fn default_filter() -> String {
+    "this_week".to_owned()
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateInviteRequest {
+    #[serde(default)]
+    pub max_uses: Option<i32>,
+    #[serde(default, with = "time::serde::rfc3339::option")]
+    pub expires_at: Option<OffsetDateTime>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct InviteResponse {
+    pub id: Uuid,
+    pub event_id: Uuid,
+    pub code: String,
+    pub url: String,
+    pub max_uses: Option<i32>,
+    pub uses: i32,
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub expires_at: Option<OffsetDateTime>,
+}
+
+impl InviteResponse {
+    pub fn new(record: InviteRecord, base_url: &str) -> Self {
+        Self {
+            url: format!("{base_url}/i/{}", record.code),
+            id: record.id,
+            event_id: record.event_id,
+            code: record.code,
+            max_uses: record.max_uses,
+            uses: record.uses,
+            expires_at: record.expires_at,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct PublicInviteResponse {
+    pub event_id: Uuid,
+    pub title: String,
+    pub category: Category,
+    pub location_name: Option<String>,
+    #[serde(with = "time::serde::rfc3339")]
+    pub starts_at: OffsetDateTime,
+    pub timezone: String,
+    pub host_first_name: String,
+    pub going_guests: i32,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RsvpRequestBody {
+    pub status: RsvpStatus,
+    #[serde(default)]
+    pub plus_ones: i32,
+    #[serde(default)]
+    pub accept_waitlist: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RsvpResponse {
+    pub event_id: Uuid,
+    pub status: RsvpStatus,
+    pub plus_ones: i32,
+    pub entered_waitlist: bool,
+    pub seats_remaining: Option<i32>,
+}
+
+impl From<RsvpView> for RsvpResponse {
+    fn from(view: RsvpView) -> Self {
+        Self {
+            event_id: view.event_id,
+            status: view.status,
+            plus_ones: view.plus_ones,
+            entered_waitlist: view.entered_waitlist,
+            seats_remaining: view.seats_remaining,
+        }
+    }
+}
+

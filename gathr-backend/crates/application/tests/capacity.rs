@@ -205,3 +205,38 @@ async fn an_uncapped_event_admits_everyone() {
     }
 }
 
+#[tokio::test]
+async fn a_cancelled_event_stops_accepting_rsvps() {
+    let db = pool().await;
+    let host = user(&db, "Amara Chukwu").await;
+    let event_id = event_with_capacity(&db, host, None).await;
+    events::cancel(&db, event_id, host)
+        .await
+        .expect("the host can cancel");
+
+    let guest = user(&db, "Late Guest").await;
+    let error = rsvps::submit(&db, going(event_id, guest, 0))
+        .await
+        .expect_err("a cancelled event must refuse rsvps");
+    assert!(matches!(
+        error,
+        AppError::Domain(DomainError::EventCancelled)
+    ));
+}
+
+#[tokio::test]
+async fn only_the_host_can_manage_an_event() {
+    let db = pool().await;
+    let host = user(&db, "Amara Chukwu").await;
+    let stranger = user(&db, "Random Person").await;
+    let event_id = event_with_capacity(&db, host, None).await;
+
+    assert!(matches!(
+        events::cancel(&db, event_id, stranger).await,
+        Err(AppError::Forbidden)
+    ));
+    assert!(matches!(
+        rsvps::guest_list(&db, event_id, stranger).await,
+        Err(AppError::Forbidden)
+    ));
+}

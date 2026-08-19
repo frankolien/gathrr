@@ -36,3 +36,14 @@ ALTER TABLE invites DROP CONSTRAINT invites_created_by_fkey;
 ALTER TABLE invites ADD CONSTRAINT invites_created_by_fkey
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE;
 
+ALTER TABLE media DROP CONSTRAINT media_owner_id_fkey;
+ALTER TABLE media ADD CONSTRAINT media_owner_id_fkey
+  FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE;
+
+ALTER TABLE rsvps DROP CONSTRAINT rsvps_invite_id_fkey;
+ALTER TABLE rsvps ADD CONSTRAINT rsvps_invite_id_fkey
+  FOREIGN KEY (invite_id) REFERENCES invites(id) ON DELETE SET NULL;
+
+ALTER TABLE guest_sessions DROP CONSTRAINT guest_sessions_invite_id_fkey;
+ALTER TABLE guest_sessions ADD CONSTRAINT guest_sessions_invite_id_fkey
+  FOREIGN KEY (invite_id) REFERENCES invites(id) ON DELETE SET NULL;

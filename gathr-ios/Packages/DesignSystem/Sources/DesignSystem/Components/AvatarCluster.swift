@@ -54,3 +54,39 @@ public struct AvatarCluster: View {
     }
 }
 
+public struct Avatar: View {
+    let name: String
+    let ringColor: Color
+
+    public init(name: String, ringColor: Color = Palette.surface) {
+        self.name = name
+        self.ringColor = ringColor
+    }
+
+    private var initials: String {
+        let parts = name.split(separator: " ").prefix(2)
+        let letters = parts.compactMap { $0.first }.map(String.init)
+        return letters.isEmpty ? "?" : letters.joined().uppercased()
+    }
+
+    private var tint: Color {
+        let palette: [Color] = [
+            Palette.adaptive(light: 0xFF_9F_0A, dark: 0xFF_9F_0A),
+            Palette.adaptive(light: 0x0A_84_FF, dark: 0x0A_84_FF),
+            Palette.adaptive(light: 0xAF_52_DE, dark: 0xBF_5A_F2),
+            Palette.adaptive(light: 0x30_D1_58, dark: 0x30_D1_58),
+            Palette.adaptive(light: 0xFF_37_5F, dark: 0xFF_37_5F),
+        ]
+        return palette[abs(name.hashValue) % palette.count]
+    }
+
+    public var body: some View {
+        Text(initials)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: 32, height: 32)
+            .background(tint)
+            .clipShape(Circle())
+            .overlay(Circle().strokeBorder(ringColor, lineWidth: 2))
+    }
+}

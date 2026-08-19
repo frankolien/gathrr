@@ -1,4 +1,3 @@
-import AuthenticationServices
 import DesignSystem
 import Onboarding
 import SwiftUI
@@ -16,7 +15,7 @@ struct SignUpView: View {
                     .font(Typography.onboardingHeadline)
                     .foregroundStyle(Palette.textPrimary)
                 Text("The easiest way to invite your people — and know who's coming.")
-                    .font(Typography.body)
+                    .font(Typography.subhead)
                     .foregroundStyle(Palette.textSecondary)
             }
             .multilineTextAlignment(.center)
@@ -34,44 +33,45 @@ struct SignUpView: View {
     }
 
     private var doors: some View {
-        VStack(spacing: Spacing.stackGap) {
-            appleDoor
-
-            if model.googleClientID != nil {
-                ProviderButton("Continue with Google", emblem: .google) {
-                    Task { await model.continueWithGoogle() }
-                }
+        VStack(spacing: OnboardingMetrics.providerRowGap) {
+            ProviderButton("Continue with Email", emblem: .plain) {
+                model.choose(.email)
             }
 
-            ProviderButton("Continue with Email", emblem: .symbol("envelope")) {
-                model.choose(.email)
+            OrDivider()
+
+            HStack(spacing: OnboardingMetrics.providerRowGap) {
+                ProviderButton(
+                    "Continue with Apple",
+                    emblem: .apple,
+                    presentation: .iconOnly
+                ) {
+                    Task { await model.continueWithApple() }
+                }
+
+                if model.googleClientID != nil {
+                    ProviderButton(
+                        "Continue with Google",
+                        emblem: .google,
+                        presentation: .iconOnly
+                    ) {
+                        Task { await model.continueWithGoogle() }
+                    }
+                }
             }
 
             if case .failed(let message) = model.phase {
                 Text(message)
-                    .font(Typography.footnote)
+                    .font(Typography.chip)
                     .foregroundStyle(Palette.statusDeclined)
                     .multilineTextAlignment(.center)
             }
 
             Text("By continuing you agree to the Gathr terms and privacy policy.")
-                .font(Typography.footnote)
+                .font(Typography.chip)
                 .foregroundStyle(Palette.textTertiary)
                 .multilineTextAlignment(.center)
                 .padding(.top, Spacing.unit)
         }
-    }
-
-    private var appleDoor: some View {
-        SignInWithAppleButton(.continue) { request in
-            request.requestedScopes = [.fullName, .email]
-            request.nonce = model.hashedAppleNonce
-        } onCompletion: { result in
-            Task { await model.completeApple(result) }
-        }
-        .signInWithAppleButtonStyle(.black)
-        .frame(height: OnboardingMetrics.providerButtonHeight)
-        .clipShape(Capsule())
-        .accessibilityLabel("Continue with Apple")
     }
 }

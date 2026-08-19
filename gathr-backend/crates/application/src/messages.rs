@@ -22,3 +22,55 @@ pub struct MessageView {
     pub created_at: OffsetDateTime,
 }
 
+impl From<messages::MessageRecord> for MessageView {
+    fn from(record: messages::MessageRecord) -> Self {
+        Self {
+            id: record.id,
+            event_id: record.event_id,
+            sender_id: record.sender_id,
+            sender_display_name: record.sender_display_name,
+            seq: record.seq,
+            body: record.body,
+            created_at: record.created_at,
+        }
+    }
+}
+
+pub async fn post(
+    db: &Db,
+    event_id: Uuid,
+    sender_id: Uuid,
+    body: &str,
+    right: PostingRight,
+) -> Result<MessageView, AppError> {
+    let body = sanitize(body)?;
+    authorize_post(db, event_id, sender_id, right).await?;
+
+    let mut tx = db
+        .begin()
+        .await
+        .map_err(gathr_infra_db::DbError::from_sqlx)?;
+    let seq = messages::allocate_seq(&mut tx, event_id).await?;
+    let record = messages::insert(&mut tx, event_id, sender_id, seq, &body).await?;
+    tx.commit()
+        .await
+        .map_err(gathr_infra_db::DbError::from_sqlx)?;
+    crate::activity::record_message(db, event_id, sender_id).await;
+
+    Ok(record.into())
+}
+
+pub async fn page(
+    db: &Db,
+    event_id: Uuid,
+    reader_id: Uuid,
+    after_seq: i64,
+    limit: Option<i64>,
+) -> Result<Vec<MessageView>, AppError> {
+    authorize_read(db, event_id, reader_id).await?;
+
+    let limit = limit.unwrap_or(DEFAULT_PAGE_SIZE).clamp(1, MAX_PAGE_SIZE);
+    let records = messages::page(db, event_id, after_seq.max(0), limit).await?;
+    Ok(records.into_iter().map(MessageView::from).collect())
+}
+

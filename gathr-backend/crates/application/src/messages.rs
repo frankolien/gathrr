@@ -15,10 +15,11 @@ pub const MAX_PAGE_SIZE: i64 = 200;
 pub struct MessageView {
     pub id: Uuid,
     pub event_id: Uuid,
-    pub sender_id: Uuid,
-    pub sender_display_name: String,
+    pub sender_id: Option<Uuid>,
+    pub sender_display_name: Option<String>,
     pub seq: i64,
     pub body: String,
+    pub redacted: bool,
     pub created_at: OffsetDateTime,
 }
 
@@ -31,6 +32,7 @@ impl From<messages::MessageRecord> for MessageView {
             sender_display_name: record.sender_display_name,
             seq: record.seq,
             body: record.body,
+            redacted: record.redacted,
             created_at: record.created_at,
         }
     }
@@ -70,7 +72,7 @@ pub async fn page(
     authorize_read(db, event_id, reader_id).await?;
 
     let limit = limit.unwrap_or(DEFAULT_PAGE_SIZE).clamp(1, MAX_PAGE_SIZE);
-    let records = messages::page(db, event_id, after_seq.max(0), limit).await?;
+    let records = messages::page(db, event_id, reader_id, after_seq.max(0), limit).await?;
     Ok(records.into_iter().map(MessageView::from).collect())
 }
 
@@ -104,4 +106,16 @@ async fn authorize_post(
     } else {
         Err(AppError::Forbidden)
     }
+}
+
+pub async fn find_readable(
+    db: &Db,
+    message_id: Uuid,
+    reader_id: Uuid,
+) -> Result<MessageView, AppError> {
+    let record = messages::find(db, message_id)
+        .await?
+        .ok_or(AppError::NotFound)?;
+    authorize_read(db, record.event_id, reader_id).await?;
+    Ok(record.into())
 }

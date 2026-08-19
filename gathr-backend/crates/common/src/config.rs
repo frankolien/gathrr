@@ -59,3 +59,27 @@ impl Config {
     }
 }
 
+fn required(key: &'static str) -> Result<String, ConfigError> {
+    match env::var(key) {
+        Ok(value) if !value.trim().is_empty() => Ok(value),
+        _ => Err(ConfigError::Missing(key)),
+    }
+}
+
+fn optional(key: &str, fallback: &str) -> String {
+    match env::var(key) {
+        Ok(value) if !value.trim().is_empty() => value,
+        _ => fallback.to_owned(),
+    }
+}
+
+fn list(key: &str) -> Vec<String> {
+    env::var(key)
+        .unwrap_or_default()
+        .split(',')
+        .map(str::trim)
+        .filter(|entry| !entry.is_empty())
+        .map(str::to_owned)
+        .collect()
+}
+

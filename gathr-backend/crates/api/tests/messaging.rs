@@ -196,3 +196,60 @@ async fn paging_after_a_sequence_returns_only_what_the_reader_has_not_seen() {
     assert_eq!(bodies, vec!["two", "three"]);
 }
 
+#[actix_web::test]
+async fn an_empty_message_is_refused_and_never_consumes_a_sequence_number() {
+    let state = state().await;
+    let app = service!(state);
+    let host = sign_in!(app, "Amara Chukwu");
+    let event = publish_event!(app, host);
+
+    let blank = post_message!(app, host, event, "   \n  ");
+    assert_eq!(blank.status(), 422);
+    assert_eq!(body_json(blank).await["error"]["code"], "message_invalid");
+
+    let real = post_message!(app, host, event, "Doors at 7");
+    assert_eq!(
+        body_json(real).await["seq"],
+        1,
+        "a rejected message must not burn a sequence number"
+    );
+}
+
+#[actix_web::test]
+async fn replaying_a_send_with_the_same_key_does_not_double_post() {
+    let state = state().await;
+    let app = service!(state);
+    let host = sign_in!(app, "Amara Chukwu");
+    let event = publish_event!(app, host);
+    let key = Uuid::new_v4().to_string();
+
+    let mut seqs = Vec::new();
+    for _ in 0..2 {
+        let response = test::call_service(
+            &app,
+            test::TestRequest::post()
+                .uri(&format!("/v1/events/{event}/messages"))
+                .insert_header(("authorization", format!("Bearer {host}")))
+                .insert_header(("idempotency-key", key.clone()))
+                .set_json(json!({ "body": "Doors at 7" }))
+                .to_request(),
+        )
+        .await;
+        seqs.push(body_json(response).await["seq"].as_i64().unwrap());
+    }
+
+    assert_eq!(seqs[0], seqs[1], "a retry must return the original message");
+
+    let read = test::call_service(
+        &app,
+        test::TestRequest::get()
+            .uri(&format!("/v1/events/{event}/messages"))
+            .insert_header(("authorization", format!("Bearer {host}")))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(
+        body_json(read).await["messages"].as_array().unwrap().len(),
+        1
+    );
+}

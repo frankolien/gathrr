@@ -63,3 +63,37 @@ pub struct GuestRecord {
     pub plus_ones: i32,
 }
 
+pub fn parse_event_status(value: &str) -> Result<EventStatus, DbError> {
+    match value {
+        "draft" => Ok(EventStatus::Draft),
+        "published" => Ok(EventStatus::Published),
+        "ongoing" => Ok(EventStatus::Ongoing),
+        "ended" => Ok(EventStatus::Ended),
+        "cancelled" => Ok(EventStatus::Cancelled),
+        other => Err(DbError::UnknownVariant {
+            column: "events.status",
+            value: other.to_owned(),
+        }),
+    }
+}
+
+pub fn parse_rsvp_status(value: &str) -> Result<RsvpStatus, DbError> {
+    match value {
+        "invited" => Ok(RsvpStatus::Invited),
+        "going" => Ok(RsvpStatus::Going),
+        "maybe" => Ok(RsvpStatus::Maybe),
+        "declined" => Ok(RsvpStatus::Declined),
+        "waitlisted" => Ok(RsvpStatus::Waitlisted),
+        other => Err(DbError::UnknownVariant {
+            column: "rsvps.status",
+            value: other.to_owned(),
+        }),
+    }
+}
+
+pub fn domain_error_is_unreachable(error: DomainError) -> DbError {
+    DbError::UnknownVariant {
+        column: "domain",
+        value: error.to_string(),
+    }
+}

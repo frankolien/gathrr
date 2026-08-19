@@ -46,3 +46,28 @@ pub fn category_tint(category: Category) -> &'static str {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use time::macros::datetime;
+
+    #[test]
+    fn lagos_times_render_in_west_africa_time() {
+        let utc = datetime!(2026-08-08 18:00 UTC);
+        assert_eq!(long_when(utc, "Africa/Lagos"), "Sat, Aug 8 · 7:00 PM");
+    }
+
+    #[test]
+    fn unknown_zones_fall_back_to_utc_rather_than_guessing() {
+        let utc = datetime!(2026-08-08 18:00 UTC);
+        assert_eq!(long_when(utc, "Mars/Olympus"), "Sat, Aug 8 · 6:00 PM");
+    }
+
+    #[test]
+    fn every_category_has_a_label_and_a_tint() {
+        for category in Category::ALL {
+            assert!(!category_label(category).is_empty());
+            assert!(category_tint(category).starts_with('#'));
+        }
+    }
+}

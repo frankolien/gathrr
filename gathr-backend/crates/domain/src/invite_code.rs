@@ -59,3 +59,72 @@ impl fmt::Display for InviteCode {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_alphabet_excludes_the_ambiguous_letters() {
+        for excluded in [b'I', b'L', b'O', b'U'] {
+            assert!(!ALPHABET.contains(&excluded));
+        }
+        assert_eq!(ALPHABET.len(), 32);
+    }
+
+    #[test]
+    fn every_byte_maps_into_the_alphabet_without_modulo_bias() {
+        let mut counts = [0usize; 32];
+        for byte in 0..=u8::MAX {
+            let index = usize::from(byte % 32);
+            counts[index] += 1;
+        }
+        assert!(counts.iter().all(|count| *count == 8));
+    }
+
+    #[test]
+    fn generated_codes_are_the_specified_length() {
+        let code = InviteCode::from_entropy([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        assert_eq!(code.as_str().len(), CODE_LENGTH);
+        assert_eq!(code.as_str(), "0123456789");
+    }
+
+    #[test]
+    fn ambiguous_input_is_normalized_the_crockford_way() {
+        let typed_by_a_guest = InviteCode::parse("iloo-OO01ab").unwrap();
+        assert_eq!(typed_by_a_guest.as_str(), "11000001AB");
+    }
+
+    #[test]
+    fn separators_and_case_are_forgiven() {
+        assert_eq!(
+            InviteCode::parse("abcd-efgh jk").unwrap().as_str(),
+            "ABCDEFGHJK"
+        );
+    }
+
+    #[test]
+    fn u_is_rejected_rather_than_normalized() {
+        assert_eq!(
+            InviteCode::parse("UUUUUUUUUU"),
+            Err(DomainError::InviteCodeInvalid)
+        );
+    }
+
+    #[test]
+    fn wrong_length_input_is_rejected() {
+        assert_eq!(
+            InviteCode::parse("ABC"),
+            Err(DomainError::InviteCodeInvalid)
+        );
+        assert_eq!(
+            InviteCode::parse("ABCDEFGHJKM"),
+            Err(DomainError::InviteCodeInvalid)
+        );
+    }
+
+    #[test]
+    fn a_generated_code_round_trips_through_parse() {
+        let code = InviteCode::from_entropy([200, 31, 64, 7, 129, 255, 12, 90, 3, 44]);
+        assert_eq!(InviteCode::parse(code.as_str()).unwrap(), code);
+    }
+}

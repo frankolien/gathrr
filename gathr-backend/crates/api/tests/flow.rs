@@ -223,3 +223,156 @@ async fn mutating_requests_require_an_idempotency_key() {
     );
 }
 
+#[actix_web::test]
+async fn protected_routes_reject_anonymous_and_foreign_callers() {
+    let state = state().await;
+    let app = service!(state);
+
+    let anonymous =
+        test::call_service(&app, test::TestRequest::get().uri("/v1/me").to_request()).await;
+    assert_eq!(anonymous.status().as_u16(), 401);
+
+    let garbage = test::call_service(
+        &app,
+        test::TestRequest::get()
+            .uri("/v1/me")
+            .insert_header(("authorization", "Bearer not-a-token"))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(garbage.status().as_u16(), 401);
+    assert_eq!(body_json(garbage).await["error"]["code"], "unauthenticated");
+
+    let host = body_json(
+        test::call_service(
+            &app,
+            test::TestRequest::post()
+                .uri("/v1/auth/dev")
+                .set_json(json!({ "display_name": "Owner" }))
+                .to_request(),
+        )
+        .await,
+    )
+    .await;
+    let stranger = body_json(
+        test::call_service(
+            &app,
+            test::TestRequest::post()
+                .uri("/v1/auth/dev")
+                .set_json(json!({ "display_name": "Stranger" }))
+                .to_request(),
+        )
+        .await,
+    )
+    .await;
+
+    let event = body_json(
+        test::call_service(
+            &app,
+            test::TestRequest::post()
+                .uri("/v1/events")
+                .insert_header((
+                    "authorization",
+                    format!("Bearer {}", host["access_token"].as_str().unwrap()),
+                ))
+                .insert_header(("idempotency-key", Uuid::new_v4().to_string()))
+                .set_json(event_body())
+                .to_request(),
+        )
+        .await,
+    )
+    .await;
+
+    let forbidden = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri(&format!(
+                "/v1/events/{}/cancel",
+                event["id"].as_str().unwrap()
+            ))
+            .insert_header((
+                "authorization",
+                format!("Bearer {}", stranger["access_token"].as_str().unwrap()),
+            ))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(forbidden.status().as_u16(), 403);
+}
+
+#[actix_web::test]
+async fn invite_codes_are_forgiving_to_type_but_not_to_guess() {
+    let state = state().await;
+    let app = service!(state);
+
+    let tokens = body_json(
+        test::call_service(
+            &app,
+            test::TestRequest::post()
+                .uri("/v1/auth/dev")
+                .set_json(json!({ "display_name": "Code Host" }))
+                .to_request(),
+        )
+        .await,
+    )
+    .await;
+    let bearer = format!("Bearer {}", tokens["access_token"].as_str().unwrap());
+
+    let event = body_json(
+        test::call_service(
+            &app,
+            test::TestRequest::post()
+                .uri("/v1/events")
+                .insert_header(("authorization", bearer.clone()))
+                .insert_header(("idempotency-key", Uuid::new_v4().to_string()))
+                .set_json(event_body())
+                .to_request(),
+        )
+        .await,
+    )
+    .await;
+
+    let invite = body_json(
+        test::call_service(
+            &app,
+            test::TestRequest::post()
+                .uri(&format!(
+                    "/v1/events/{}/invites",
+                    event["id"].as_str().unwrap()
+                ))
+                .insert_header(("authorization", bearer))
+                .set_json(json!({}))
+                .to_request(),
+        )
+        .await,
+    )
+    .await;
+    let code = invite["code"].as_str().unwrap().to_owned();
+
+    let lowercase = test::call_service(
+        &app,
+        test::TestRequest::get()
+            .uri(&format!("/v1/invites/{}", code.to_lowercase()))
+            .to_request(),
+    )
+    .await;
+    assert!(
+        lowercase.status().is_success(),
+        "a guest retyping a code in lowercase must still get in"
+    );
+
+    for guess in ["ZZZZZZZZZZ", "SHORT", "UUUUUUUUUU"] {
+        let response = test::call_service(
+            &app,
+            test::TestRequest::get()
+                .uri(&format!("/v1/invites/{guess}"))
+                .to_request(),
+        )
+        .await;
+        assert_eq!(
+            response.status().as_u16(),
+            404,
+            "invalid and unknown codes must be indistinguishable"
+        );
+    }
+}

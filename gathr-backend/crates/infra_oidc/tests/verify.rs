@@ -53,3 +53,38 @@ struct Claims {
     nonce: Option<String>,
 }
 
+fn keys() -> JwkSet {
+    serde_json::from_value(serde_json::json!({
+        "keys": [{ "kid": KEY_ID, "n": TEST_ONLY_MODULUS, "e": "AQAB" }]
+    }))
+    .expect("the fixture key set should parse")
+}
+
+fn sign(claims: &Claims) -> String {
+    let mut header = Header::new(Algorithm::RS256);
+    header.kid = Some(KEY_ID.to_owned());
+    encode(
+        &header,
+        claims,
+        &EncodingKey::from_rsa_pem(TEST_ONLY_SIGNING_KEY.as_bytes())
+            .expect("the fixture key should load"),
+    )
+    .expect("signing should succeed")
+}
+
+fn google_claims() -> Claims {
+    Claims {
+        sub: "google-subject-1".to_owned(),
+        iss: "https://accounts.google.com".to_owned(),
+        aud: "gathr-ios-client".to_owned(),
+        exp: (OffsetDateTime::now_utc().unix_timestamp()) + 600,
+        email: Some("amara@example.com".to_owned()),
+        name: Some("Amara Chukwu".to_owned()),
+        nonce: None,
+    }
+}
+
+fn audiences() -> Vec<String> {
+    vec!["gathr-ios-client".to_owned()]
+}
+

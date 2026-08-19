@@ -1337,3 +1337,21 @@ A change is done when every one of these is true. CI enforces them; none is a ma
 
 ---
 
+## 20. Risk Register
+
+| Risk | Likelihood | Impact | Mitigation | Trigger to act |
+|---|---|---|---|---|
+| SMS OTP blocked by DND filtering | High | High | Local aggregator + Sign in with Apple as the primary path (14.2) | Delivery rate below 90% on any network |
+| Apple rejects the app for account deletion or privacy | Medium | High | `DELETE /v1/me` and the privacy notice ship in Phase 1, not at submission | n/a — do it early |
+| Capacity race under concurrent RSVP load | Medium | High | Row-locked transaction (4.6); load-test 100 concurrent RSVPs against a capacity-10 event | p99 RSVP latency above 500ms |
+| Chat outgrows single-node broadcast | Low in MVP | Medium | Redis pub/sub or NATS swap behind the existing port | More than one API instance |
+| Cover uploads fail on poor connectivity | High | Medium | Background upload, publish-without-cover fallback (8.6) | Upload failure rate above 5% |
+| Universal links silently break | Medium | High | AASA served correctly from day one; an automated check hits `/.well-known/` on every deploy | Any deploy |
+| Guest-claim merge corrupts RSVPs | Low | High | Advisory lock + conflict rule (9.3), integration-tested with concurrent claims | n/a |
+| Deferred auth tanks conversion instead of raising it | Medium | Medium | `rsvp_submitted.is_guest` segmentation (16.1) | Guest conversion below app conversion |
+| Scope creep from V2 surfaces in the tab bar | High | Medium | D1 feature-flags Explore out of the shipping build | Any Explore work before V1 is complete |
+
+**Open questions for the product owner**: Can guests see each other's names, or only counts, before RSVPing? Can a guest change a Going to a Can't Go after the event starts? Do plus-ones get their own identities and chat access, or are they just a number? Is the exact address hidden until Going by default? Who inherits an event if the host deletes their account?
+
+---
+

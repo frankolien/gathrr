@@ -42,3 +42,23 @@ pub async fn replay(
     Ok(Some(HttpResponse::build(status).json(body)))
 }
 
+pub async fn record(
+    state: &AppState,
+    key: &str,
+    user_id: Uuid,
+    fingerprint: &str,
+    status: u16,
+    body: &Value,
+) -> Result<(), ApiError> {
+    idempotency::save(
+        &state.db,
+        key,
+        user_id,
+        fingerprint,
+        i32::from(status),
+        body,
+    )
+    .await
+    .map_err(AppError::from)?;
+    Ok(())
+}

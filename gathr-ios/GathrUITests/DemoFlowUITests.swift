@@ -41,6 +41,31 @@ final class DemoFlowUITests: XCTestCase {
         openNotifications(app, expecting: title)
     }
 
+    func testTheTabBarCarriesSelectionAcrossAllFourTabs() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-gathr-signed-out"]
+        app.launch()
+
+        finishOnboarding(app)
+        signIn(app)
+        setUpProfile(app, named: "Amara Chukwu")
+        answerTheNotificationPrimer(app)
+
+        for tab in ["Home", "Explore", "Calendar", "Profile"] {
+            let button = app.buttons[tab].firstMatch
+            XCTAssertTrue(
+                button.waitForExistence(timeout: 20),
+                "the bar should offer every enabled tab, missing \(tab)"
+            )
+            button.tap()
+            XCTAssertTrue(
+                button.isSelected,
+                "tapping \(tab) should move the selection onto it"
+            )
+            attachScreenshot(app, named: "tab-\(tab.lowercased())")
+        }
+    }
+
     private func openNotifications(_ app: XCUIApplication, expecting title: String) {
         app.buttons["Notifications"].firstMatch.tap()
 

@@ -298,3 +298,69 @@ async fn an_export_carries_everything_the_account_holds() {
     assert!(export["exported_at"].as_str().is_some());
 }
 
+#[actix_web::test]
+async fn deleting_an_account_tombstones_its_messages_and_takes_its_events() {
+    let state = state().await;
+    let db = state.db.clone();
+    let app = service!(state);
+    let host = sign_in(&app, "Amara Chukwu").await;
+    let leaver = sign_in(&app, "Tunde Bello").await;
+
+    let their_own = publish_event(&app, &leaver.token, "Their Own Party").await;
+    let someone_elses = publish_event(&app, &host.token, "Someone Else's Party").await;
+    rsvp(&app, &leaver.token, someone_elses).await;
+    post_message(&app, &leaver.token, someone_elses, "cannot wait for this").await;
+
+    let erased = test::call_service(
+        &app,
+        test::TestRequest::delete()
+            .uri("/v1/me")
+            .insert_header(("authorization", format!("Bearer {}", leaver.token)))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(erased.status(), 200);
+    let outcome = body_json(erased).await;
+    assert_eq!(outcome["deleted"], true);
+    assert_eq!(outcome["events_cancelled"], 1);
+    assert_eq!(outcome["messages_redacted"], 1);
+
+    assert!(
+        gathr_infra_db::users::find(&db, leaver.id)
+            .await
+            .unwrap()
+            .is_none(),
+        "the user row must be gone, not merely flagged"
+    );
+    assert!(
+        gathr_infra_db::events::find(&db, their_own)
+            .await
+            .unwrap()
+            .is_none(),
+        "an event nobody hosts any more must not linger"
+    );
+
+    let surviving = thread(&app, &host.token, someone_elses).await;
+    let tombstone = &surviving["messages"][0];
+    assert_eq!(
+        tombstone["seq"], 1,
+        "the sequence must survive the deletion"
+    );
+    assert_eq!(tombstone["body"], "");
+    assert_eq!(tombstone["redacted"], true);
+    assert!(tombstone["sender_display_name"].is_null());
+}
+
+#[actix_web::test]
+async fn a_signed_out_caller_cannot_reach_the_privacy_surface() {
+    let state = state().await;
+    let app = service!(state);
+
+    for request in [
+        test::TestRequest::get().uri("/v1/me/export").to_request(),
+        test::TestRequest::delete().uri("/v1/me").to_request(),
+        test::TestRequest::get().uri("/v1/blocks").to_request(),
+    ] {
+        assert_eq!(test::call_service(&app, request).await.status(), 401);
+    }
+}

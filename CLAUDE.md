@@ -26,3 +26,11 @@ Full specification: `handoff.md`. Section references below point there.
 - No hardcoded user-facing strings. String catalog from the first commit.
 - Dates formatted with Date.FormatStyle in the event's timezone. Never a format string.
 
+## Non-negotiables
+- Every capacity-affecting write goes through the single CAP guard (Section 4.1). One implementation, one call site pattern, integration-tested under concurrency.
+- Idempotency keys are generated once at enqueue and reused across retries. Never regenerated per attempt.
+- Phone numbers never appear in a guest-visible DTO. Enforced by a serialization test, not by review.
+- Authorization goes through can_manage(event, user), never a bare host_id comparison (migration 0007).
+- Every icon-only control has an accessibility label. Every card is one VoiceOver element.
+- New endpoint => row in the Section 12.3 table, error codes in 12.2, integration test, all in the same commit.
+

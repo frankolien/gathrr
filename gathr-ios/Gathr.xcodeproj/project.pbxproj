@@ -1,0 +1,495 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		38838C1C0B1F8F862053D6E7 /* AppSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1047D9E101011504E679F179 /* AppSession.swift */; };
+		3F0F27D8C97BAEE0475777E9 /* DemoFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D66BFA785CEEB8DBCB3AFEE /* DemoFlowUITests.swift */; };
+		4E30F907CBBF5313882E5137 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAF245A784318E7801E1CA79 /* RootView.swift */; };
+		71138B7C8FF9967867E3D213 /* Features in Frameworks */ = {isa = PBXBuildFile; productRef = 8BA2A4D83D9132FBB069A02F /* Features */; };
+		7D9A18D1265886217C6CF8D3 /* Models in Frameworks */ = {isa = PBXBuildFile; productRef = BC76B7307CDE712808F0B6A8 /* Models */; };
+		AC5BDC1A1E2F0862A2A7BA7F /* GathrApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01544D05E492C8135AD8A071 /* GathrApp.swift */; };
+		EEEB29177AFBB9E49886CF8C /* Networking in Frameworks */ = {isa = PBXBuildFile; productRef = 55B7CDE15D9F7677FC0368FC /* Networking */; };
+		F44E3314D7CB025C857C2713 /* DesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 61FB7AF3762077DB8061337B /* DesignSystem */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		AFC64E70D0576A7366C1EA08 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = DA98161374DC41736329DB61 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0F4A72DB2549D20F0AF55EF8;
+			remoteInfo = Gathr;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		01544D05E492C8135AD8A071 /* GathrApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GathrApp.swift; sourceTree = "<group>"; };
+		0EBE4BA8973222A741AE6195 /* Gathr.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Gathr.entitlements; sourceTree = "<group>"; };
+		1047D9E101011504E679F179 /* AppSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSession.swift; sourceTree = "<group>"; };
+		272818FEC67F2F86EDD32442 /* Features */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Features; path = Packages/Features; sourceTree = SOURCE_ROOT; };
+		494354B5BF0F301446A4243B /* DesignSystem */ = {isa = PBXFileReference; lastKnownFileType = folder; name = DesignSystem; path = Packages/DesignSystem; sourceTree = SOURCE_ROOT; };
+		6D66BFA785CEEB8DBCB3AFEE /* DemoFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoFlowUITests.swift; sourceTree = "<group>"; };
+		7D854BFECF9B22AAF7E45C6F /* GathrUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = GathrUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		92456D6EAF57D1F46106B536 /* Gathr.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Gathr.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		9DC6BDBE394C3A863E1D6DC1 /* Models */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Models; path = Packages/Models; sourceTree = SOURCE_ROOT; };
+		F91178E5FEEA0505CF82DBAB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		F943B1F6D4D9002EA8951374 /* Networking */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Networking; path = Packages/Networking; sourceTree = SOURCE_ROOT; };
+		FAF245A784318E7801E1CA79 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		DD0B845379DDC18C809FD551 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7D9A18D1265886217C6CF8D3 /* Models in Frameworks */,
+				F44E3314D7CB025C857C2713 /* DesignSystem in Frameworks */,
+				EEEB29177AFBB9E49886CF8C /* Networking in Frameworks */,
+				71138B7C8FF9967867E3D213 /* Features in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		09AE38D44FFA7C7B4E75091F = {
+			isa = PBXGroup;
+			children = (
+				FD74AD35B849A892D9D8A321 /* GathrApp */,
+				B6AAB4FE61DB92924CF677A4 /* GathrUITests */,
+				9B312894944D803BC14E52A5 /* Packages */,
+				53D31741FE65A1FA868723D9 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		53D31741FE65A1FA868723D9 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				92456D6EAF57D1F46106B536 /* Gathr.app */,
+				7D854BFECF9B22AAF7E45C6F /* GathrUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		9B312894944D803BC14E52A5 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				494354B5BF0F301446A4243B /* DesignSystem */,
+				272818FEC67F2F86EDD32442 /* Features */,
+				9DC6BDBE394C3A863E1D6DC1 /* Models */,
+				F943B1F6D4D9002EA8951374 /* Networking */,
+			);
+			path = Packages;
+			sourceTree = "<group>";
+		};
+		B6AAB4FE61DB92924CF677A4 /* GathrUITests */ = {
+			isa = PBXGroup;
+			children = (
+				6D66BFA785CEEB8DBCB3AFEE /* DemoFlowUITests.swift */,
+			);
+			path = GathrUITests;
+			sourceTree = "<group>";
+		};
+		FD74AD35B849A892D9D8A321 /* GathrApp */ = {
+			isa = PBXGroup;
+			children = (
+				1047D9E101011504E679F179 /* AppSession.swift */,
+				0EBE4BA8973222A741AE6195 /* Gathr.entitlements */,
+				01544D05E492C8135AD8A071 /* GathrApp.swift */,
+				F91178E5FEEA0505CF82DBAB /* Info.plist */,
+				FAF245A784318E7801E1CA79 /* RootView.swift */,
+			);
+			path = GathrApp;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		0F4A72DB2549D20F0AF55EF8 /* Gathr */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 720C23B30FFC1D66B7C62FA0 /* Build configuration list for PBXNativeTarget "Gathr" */;
+			buildPhases = (
+				09ED446D27BB0E8F6966A074 /* Sources */,
+				DD0B845379DDC18C809FD551 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Gathr;
+			packageProductDependencies = (
+				BC76B7307CDE712808F0B6A8 /* Models */,
+				61FB7AF3762077DB8061337B /* DesignSystem */,
+				55B7CDE15D9F7677FC0368FC /* Networking */,
+				8BA2A4D83D9132FBB069A02F /* Features */,
+			);
+			productName = Gathr;
+			productReference = 92456D6EAF57D1F46106B536 /* Gathr.app */;
+			productType = "com.apple.product-type.application";
+		};
+		22867D472DC7379E8797948C /* GathrUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2FF09D791779674FAD66FAFD /* Build configuration list for PBXNativeTarget "GathrUITests" */;
+			buildPhases = (
+				164E464C72D9DE653F5D8187 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				30ADDC29144D1B0711F8B5F4 /* PBXTargetDependency */,
+			);
+			name = GathrUITests;
+			packageProductDependencies = (
+			);
+			productName = GathrUITests;
+			productReference = 7D854BFECF9B22AAF7E45C6F /* GathrUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		DA98161374DC41736329DB61 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					22867D472DC7379E8797948C = {
+						TestTargetID = 0F4A72DB2549D20F0AF55EF8;
+					};
+				};
+			};
+			buildConfigurationList = 29722B65CF3470320D9FA17E /* Build configuration list for PBXProject "Gathr" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 09AE38D44FFA7C7B4E75091F;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				4C12C1C13BDB92529E0BD60A /* XCLocalSwiftPackageReference "Packages/DesignSystem" */,
+				33D52C2F6C09992B25CFA242 /* XCLocalSwiftPackageReference "Packages/Features" */,
+				910214330B1B6CA2A6B1883C /* XCLocalSwiftPackageReference "Packages/Models" */,
+				13EE378EFDB2439017E1C057 /* XCLocalSwiftPackageReference "Packages/Networking" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 53D31741FE65A1FA868723D9 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				0F4A72DB2549D20F0AF55EF8 /* Gathr */,
+				22867D472DC7379E8797948C /* GathrUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		09ED446D27BB0E8F6966A074 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				38838C1C0B1F8F862053D6E7 /* AppSession.swift in Sources */,
+				AC5BDC1A1E2F0862A2A7BA7F /* GathrApp.swift in Sources */,
+				4E30F907CBBF5313882E5137 /* RootView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		164E464C72D9DE653F5D8187 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3F0F27D8C97BAEE0475777E9 /* DemoFlowUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		30ADDC29144D1B0711F8B5F4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0F4A72DB2549D20F0AF55EF8 /* Gathr */;
+			targetProxy = AFC64E70D0576A7366C1EA08 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		2478B01C0E063F89038099F8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		503FE41B008C701F0BF3EEBC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.gathr.ios.uitests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Gathr;
+			};
+			name = Debug;
+		};
+		5FEE6887A0F94998C43A05A6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.gathr.ios.uitests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Gathr;
+			};
+			name = Release;
+		};
+		68551F1FC9BF587DA6E96E88 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = GathrApp/Gathr.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				INFOPLIST_FILE = GathrApp/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.gathr.ios;
+				SDKROOT = iphoneos;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_UPCOMING_FEATURE_CONCURRENCY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		8CF557415874C887D7FB7C77 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = GathrApp/Gathr.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				INFOPLIST_FILE = GathrApp/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.gathr.ios;
+				SDKROOT = iphoneos;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_UPCOMING_FEATURE_CONCURRENCY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		E6FE6B16F6C5CF2195357D00 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		29722B65CF3470320D9FA17E /* Build configuration list for PBXProject "Gathr" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2478B01C0E063F89038099F8 /* Debug */,
+				E6FE6B16F6C5CF2195357D00 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		2FF09D791779674FAD66FAFD /* Build configuration list for PBXNativeTarget "GathrUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				503FE41B008C701F0BF3EEBC /* Debug */,
+				5FEE6887A0F94998C43A05A6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		720C23B30FFC1D66B7C62FA0 /* Build configuration list for PBXNativeTarget "Gathr" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8CF557415874C887D7FB7C77 /* Debug */,
+				68551F1FC9BF587DA6E96E88 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		13EE378EFDB2439017E1C057 /* XCLocalSwiftPackageReference "Packages/Networking" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/Networking;
+		};
+		33D52C2F6C09992B25CFA242 /* XCLocalSwiftPackageReference "Packages/Features" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/Features;
+		};
+		4C12C1C13BDB92529E0BD60A /* XCLocalSwiftPackageReference "Packages/DesignSystem" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/DesignSystem;
+		};
+		910214330B1B6CA2A6B1883C /* XCLocalSwiftPackageReference "Packages/Models" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/Models;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		55B7CDE15D9F7677FC0368FC /* Networking */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Networking;
+		};
+		61FB7AF3762077DB8061337B /* DesignSystem */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DesignSystem;
+		};
+		8BA2A4D83D9132FBB069A02F /* Features */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Features;
+		};
+		BC76B7307CDE712808F0B6A8 /* Models */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Models;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = DA98161374DC41736329DB61 /* Project object */;
+}

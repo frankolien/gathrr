@@ -68,3 +68,54 @@ fn apns_token() -> String {
     Uuid::new_v4().simple().to_string().repeat(2)
 }
 
+#[actix_web::test]
+async fn a_device_registers_once_and_re_registering_the_same_token_does_not_duplicate_it() {
+    let state = state().await;
+    let app = service!(state);
+    let token = sign_in!(app, "Amara Chukwu");
+    let apns = apns_token();
+
+    let first = register_device!(app, token, &apns);
+    assert_eq!(first.status(), 201);
+    let id = body_json(first).await["id"].as_str().unwrap().to_owned();
+
+    let again = register_device!(app, token, &apns);
+    assert_eq!(again.status(), 201);
+    assert_eq!(
+        body_json(again).await["id"].as_str().unwrap(),
+        id,
+        "the same hardware must keep the same device row across launches"
+    );
+}
+
+#[actix_web::test]
+async fn something_that_is_not_a_device_token_is_refused() {
+    let state = state().await;
+    let app = service!(state);
+    let token = sign_in!(app, "Amara Chukwu");
+
+    let response = register_device!(app, token, "not-a-token");
+    assert_eq!(response.status(), 422);
+    assert_eq!(
+        body_json(response).await["error"]["code"],
+        "validation_failed"
+    );
+}
+
+#[actix_web::test]
+async fn a_signed_out_caller_cannot_register_a_device() {
+    let state = state().await;
+    let app = service!(state);
+
+    let response = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/v1/devices")
+            .set_json(json!({ "apns_token": apns_token() }))
+            .to_request(),
+    )
+    .await;
+
+    assert_eq!(response.status(), 401);
+}
+

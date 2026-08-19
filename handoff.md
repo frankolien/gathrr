@@ -542,3 +542,7 @@ Wrapped in a transaction that first locks the event row and checks the capacity 
 - Every icon-only control has an accessibility label. Every card is one VoiceOver element.
 - New endpoint => row in the Section 12.3 table, error codes in 12.2, integration test, all in the same commit.
 
+## Naming
+- Rust: snake_case fns, CamelCase types, verbs for functions (create_event), nouns for types.
+- Swift: lowerCamelCase, descriptive names, no abbreviations.
+

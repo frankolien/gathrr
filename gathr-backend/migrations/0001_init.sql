@@ -90,3 +90,28 @@ CREATE TABLE media (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE reminder_jobs (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id   UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  run_at     TIMESTAMPTZ NOT NULL,
+  kind       TEXT NOT NULL,
+  status     TEXT NOT NULL DEFAULT 'pending',
+  attempts   INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_reminder_due ON reminder_jobs(run_at) WHERE status = 'pending';
+
+CREATE TABLE event_counters (
+  event_id UUID PRIMARY KEY REFERENCES events(id) ON DELETE CASCADE,
+  last_seq BIGINT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE idempotency_keys (
+  key           TEXT PRIMARY KEY,
+  user_id       UUID NOT NULL,
+  request_hash  TEXT NOT NULL,
+  response_code INTEGER,
+  response_body JSONB,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_idempotency_created ON idempotency_keys(created_at);

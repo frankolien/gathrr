@@ -185,3 +185,26 @@ impl Apns {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn push_stays_unconfigured_until_every_piece_is_present() {
+        assert!(Apns::new(String::new(), "K".into(), "pem", "app.gathr.ios".into()).is_none());
+        assert!(Apns::new("T".into(), String::new(), "pem", "app.gathr.ios".into()).is_none());
+        assert!(Apns::new("T".into(), "K".into(), "   ", "app.gathr.ios".into()).is_none());
+        assert!(Apns::new("T".into(), "K".into(), "pem", String::new()).is_none());
+    }
+
+    #[test]
+    fn a_malformed_key_is_reported_rather_than_panicking_at_send_time() {
+        let built = Apns::new(
+            "TEAMID1234".into(),
+            "KEYID12345".into(),
+            "not a pem at all",
+            "app.gathr.ios".into(),
+        );
+        assert!(matches!(built, Some(Err(PushError::UnusableKey(_)))));
+    }
+}

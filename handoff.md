@@ -458,3 +458,48 @@ Liveness properties:
 
 ---
 
+## 5. Algorithms with Complexity
+
+### 5.1 Invite Code Generation (collision-resistant)
+
+Use Crockford base32 codes of length L. With a 32-symbol alphabet, an L-character code has 32^L = 2^(5L) possibilities. An 8-char code gives 2^40 (~1.1e12) space. By the birthday bound, the probability of any collision among n codes is approximately `1 - e^(-n^2 / (2 * space))`; collision risk scales with n^2, not n, so it grows far faster than linear intuition suggests. For 1e6 live codes against 2^40 that risk is roughly 35 to 45%, so 8 chars is too short at scale; use 10 chars (2^50 ~ 1.1e15) which drops it to about 4e-4, or 12 chars for very large scale. Algorithm: generate L random symbols from a CSPRNG, INSERT with UNIQUE(code); on conflict, retry (expected retries near 1 while the load factor is low). Complexity: O(1) expected per code.
+
+### 5.2 Countdown Computation
+
+Store starts_at as TIMESTAMPTZ (UTC) plus an IANA timezone (Africa/Lagos = WAT, UTC+1, no DST). Countdown = starts_at - server_now, computed server-side and sent as an absolute UTC instant so clients render locally without trusting device clocks. Display in the event's timezone for consistency; international guests see their local equivalent. Complexity O(1).
+
+### 5.3 Feed Ranking ("This week")
+
+Sort candidate events (starts_at within [now, now+7d], user is host or attendee) by a key: primary start_time ascending, with a hosting-priority boost so the user's hosted events surface first when times are close. Score = starts_at_epoch - (is_host ? boost : 0). Sort is O(n log n).
+
+### 5.4 Avatar Cluster Selection
+
+For the "+N going" cluster, take the first k (e.g. 5) going guests ordered by RSVP recency or social affinity, render overlapping avatars, and show "+ (going_count - k)". O(k) after an indexed query.
+
+### 5.5 Reminder Scheduling
+
+On publish, insert reminder_jobs at computed run_at (e.g. starts_at - 7d, starts_at - 2h, matching Partiful's cadence). Worker loop: `SELECT ... WHERE status='pending' AND run_at <= now() ORDER BY run_at LIMIT batch FOR UPDATE SKIP LOCKED`, send, mark done. DB polling with SKIP LOCKED (optionally LISTEN/NOTIFY to cut latency). Each poll O(batch).
+
+### 5.6 Chat Pagination
+
+Keyset/cursor pagination on (event_id, seq): `WHERE event_id=E AND seq < cursor ORDER BY seq DESC LIMIT k`. O(k) with the index, stable under inserts, no OFFSET drift.
+
+### 5.7 Rate Limiting (token bucket)
+
+Per key (user or IP): bucket of capacity C refilling at r tokens/sec. On request, refill by elapsed*r capped at C, allow if >=1 token and decrement, else 429. O(1) per request; state in Redis or in-memory.
+
+### 5.8 Idempotent RSVP Upsert
+
+```sql
+INSERT INTO rsvps (event_id, user_id, status, plus_ones, invite_id)
+VALUES ($1,$2,$3,$4,$5)
+ON CONFLICT (event_id, user_id)
+DO UPDATE SET status = EXCLUDED.status,
+              plus_ones = EXCLUDED.plus_ones,
+              updated_at = now()
+RETURNING *;
+```
+Wrapped in a transaction that first locks the event row and checks the capacity guard for transitions into going. O(1).
+
+---
+

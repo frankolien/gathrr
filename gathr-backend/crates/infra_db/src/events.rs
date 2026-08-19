@@ -130,6 +130,8 @@ pub async fn insert(tx: &mut Tx<'_>, new: NewEvent<'_>) -> Result<EventRecord, D
     .await
     .map_err(DbError::from_sqlx)?;
 
+    crate::hosts::install_owner(tx, row.id, new.host_id).await?;
+
     row.into_record()
 }
 
@@ -259,7 +261,11 @@ pub async fn feed_hosting(db: &Db, user_id: Uuid) -> Result<Vec<EventSummaryReco
              JOIN users u ON u.id = r2.user_id
              WHERE r2.event_id = e.id AND r2.status = 'going'
            ) g ON TRUE
-           WHERE e.host_id = $1 AND e.status <> 'cancelled'
+           WHERE e.status <> 'cancelled'
+             AND EXISTS (
+               SELECT 1 FROM event_hosts h
+               WHERE h.event_id = e.id AND h.user_id = $1
+             )
            ORDER BY e.starts_at
            LIMIT 50"#,
         user_id

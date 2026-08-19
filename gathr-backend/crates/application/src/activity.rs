@@ -52,7 +52,7 @@ pub async fn mark_read(db: &Db, user_id: Uuid, ids: &[Uuid]) -> Result<i64, AppE
 pub async fn record_rsvp(db: &Db, event_id: Uuid, actor_id: Uuid, status: RsvpStatus) {
     let Some(kind) = kind_for(status) else { return };
     settle(
-        feed_rows::notify_host(db, event_id, actor_id, kind).await,
+        feed_rows::notify_hosts(db, event_id, actor_id, kind).await,
         kind,
         event_id,
     );

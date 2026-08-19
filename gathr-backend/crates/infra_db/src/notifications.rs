@@ -15,7 +15,7 @@ pub struct NotificationRecord {
     pub created_at: OffsetDateTime,
 }
 
-pub async fn notify_host(
+pub async fn notify_hosts(
     db: &Db,
     event_id: Uuid,
     actor_id: Uuid,
@@ -23,13 +23,13 @@ pub async fn notify_host(
 ) -> Result<u64, DbError> {
     sqlx::query!(
         r#"INSERT INTO notifications (user_id, actor_id, event_id, kind)
-           SELECT e.host_id, $2, e.id, ($3::text)::notification_kind
-           FROM events e
-           WHERE e.id = $1
-             AND e.host_id <> $2
+           SELECT h.user_id, $2, h.event_id, ($3::text)::notification_kind
+           FROM event_hosts h
+           WHERE h.event_id = $1
+             AND h.user_id <> $2
              AND NOT EXISTS (
                SELECT 1 FROM event_mutes m
-               WHERE m.user_id = e.host_id AND m.event_id = e.id
+               WHERE m.user_id = h.user_id AND m.event_id = h.event_id
              )"#,
         event_id,
         actor_id,
@@ -54,7 +54,7 @@ pub async fn notify_members(
              SELECT r.user_id FROM rsvps r
              WHERE r.event_id = $1 AND r.status <> 'declined'
              UNION
-             SELECT e.host_id FROM events e WHERE e.id = $1
+             SELECT h.user_id FROM event_hosts h WHERE h.event_id = $1
            ) AS audience
            WHERE audience.user_id IS DISTINCT FROM $2
              AND NOT EXISTS (
@@ -79,7 +79,7 @@ pub async fn announce_message(db: &Db, event_id: Uuid, sender_id: Uuid) -> Resul
              SELECT r.user_id FROM rsvps r
              WHERE r.event_id = $1 AND r.status <> 'declined'
              UNION
-             SELECT e.host_id FROM events e WHERE e.id = $1
+             SELECT h.user_id FROM event_hosts h WHERE h.event_id = $1
            ) AS audience
            WHERE audience.user_id <> $2
              AND NOT EXISTS (

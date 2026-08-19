@@ -54,7 +54,7 @@ pub async fn audience_for_event(db: &Db, event_id: Uuid) -> Result<Vec<DeviceRec
              SELECT r.user_id FROM rsvps r
              WHERE r.event_id = $1 AND r.status IN ('going', 'maybe')
              UNION
-             SELECT e.host_id FROM events e WHERE e.id = $1
+             SELECT h.user_id FROM event_hosts h WHERE h.event_id = $1
            )
            AND NOT EXISTS (
              SELECT 1 FROM event_mutes m

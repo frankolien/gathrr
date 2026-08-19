@@ -40,3 +40,37 @@ pub async fn sign(
     }))
 }
 
+pub async fn record(
+    state: web::Data<AppState>,
+    user: AuthUser,
+    body: web::Json<RecordMediaRequest>,
+) -> Result<HttpResponse, ApiError> {
+    let id = media::record(
+        &state.db,
+        user.0,
+        &body.public_id,
+        &body.content_type,
+        body.width,
+        body.height,
+    )
+    .await?;
+
+    Ok(HttpResponse::Created().json(RecordMediaResponse { id }))
+}
+
+pub async fn attach_cover(
+    state: web::Data<AppState>,
+    user: AuthUser,
+    path: web::Path<(Uuid, Uuid)>,
+) -> Result<HttpResponse, ApiError> {
+    let (event_id, media_id) = path.into_inner();
+    gathr_application::events::can_manage(&state.db, event_id, user.0)
+        .await?
+        .then_some(())
+        .ok_or(ApiError(gathr_application::AppError::Forbidden))?;
+
+    media::attach_cover(&state.db, event_id, user.0, media_id).await?;
+
+    let url = media::cover_url(&state.db, state.cloudinary.as_ref(), event_id).await?;
+    Ok(HttpResponse::Ok().json(serde_json::json!({ "cover_url": url })))
+}

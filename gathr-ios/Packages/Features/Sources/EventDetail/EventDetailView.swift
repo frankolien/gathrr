@@ -147,3 +147,26 @@ public struct EventDetailView: View {
     }
 }
 
+struct StatusBanner: View {
+    let status: EventStatus
+
+    private var copy: (String, Color) {
+        switch status {
+        case .ongoing: ("Happening now", Palette.statusGoing)
+        case .ended: ("This event has ended", Palette.textSecondary)
+        case .cancelled: ("This event was cancelled", Palette.statusDeclined)
+        default: ("Not published yet", Palette.textSecondary)
+        }
+    }
+
+    var body: some View {
+        Text(copy.0)
+            .font(Typography.footnote)
+            .foregroundStyle(copy.1)
+            .padding(.horizontal, Spacing.stackGap)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity)
+            .background(copy.1.opacity(0.12))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
+    }
+}

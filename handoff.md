@@ -1887,3 +1887,10 @@ but the hexagon is not enforced at the application boundary.
 
 Thresholds that change the plan: if concurrent load on capacity-limited events is high, move the capacity guard to a dedicated counter row or advisory locks; if chat scales beyond a single node, replace the in-process broadcast with Redis pub/sub or NATS; if image transform latency matters, precompute variants in a worker rather than on the fly.
 
+## Caveats
+
+- Partiful's growth figures are best sourced from TIME's 2025 TIME100 profile ("added over 2 million new users in the first quarter of 2025 ... reaching users in over 100 countries," with activity up "600% in 2024"); marketing-blog MAU numbers (e.g. 500,000) conflict with these and should be treated as directional only. The ~$27.3M total funding, November 2022 $20M a16z-led Series A, and 2020 founding by Shreya Murthy and Joy Tao are well sourced.
+- Apple Invites requires iCloud+ to create events (creation needs the 50GB+ tier; iCloud+ starts at $0.99/month) while "anyone can RSVP, regardless of whether they have an Apple Account or Apple device," per Apple's February 4, 2025 newsroom release. This shaped our "anyone can RSVP, only subscribers create" mental model; verify current Apple terms before making competitive claims. Apple later added co-hosting (up to five co-hosts) in a subsequent update.
+- Crate versions move fast: actix-web reached 4.14.1 and sqlx 0.9.0 shipped around May 2026; confirm the latest at build time and align MSRV accordingly.
+- Latency and conversion targets are proposed benchmarks, not measured; instrument and revise after beta.
+- The formal invariants are specifications, not machine-checked proofs; if you need mechanized verification, port Section 4 to TLA+ and model-check the RSVP and lifecycle machines.

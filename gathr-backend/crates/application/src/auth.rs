@@ -104,3 +104,93 @@ pub async fn issue_pair(
     })
 }
 
+pub async fn sign_in_dev(
+    db: &Db,
+    settings: &TokenSettings,
+    display_name: &str,
+    phone: Option<&str>,
+) -> Result<(Uuid, TokenPair), AppError> {
+    if display_name.trim().is_empty() {
+        return Err(AppError::Validation(
+            "a display name is required".to_owned(),
+        ));
+    }
+
+    let existing = match phone {
+        Some(phone) => users::find_claimed_by_phone(db, phone).await?,
+        None => None,
+    };
+
+    let user = match existing {
+        Some(user) => user,
+        None => {
+            let mut tx = db
+                .begin()
+                .await
+                .map_err(gathr_infra_db::DbError::from_sqlx)?;
+            let created = users::insert(&mut tx, display_name.trim(), phone, false).await?;
+            tx.commit()
+                .await
+                .map_err(gathr_infra_db::DbError::from_sqlx)?;
+            created
+        }
+    };
+
+    let pair = issue_pair(db, settings, user.id, Uuid::new_v4()).await?;
+    Ok((user.id, pair))
+}
+
+pub async fn rotate(
+    db: &Db,
+    settings: &TokenSettings,
+    refresh_token: &str,
+) -> Result<TokenPair, AppError> {
+    let stored = tokens::find_refresh(db, &hash_token(refresh_token))
+        .await?
+        .ok_or(AppError::Unauthenticated)?;
+
+    if stored.revoked_at.is_some() {
+        return Err(AppError::TokenReuseDetected);
+    }
+    if stored.used_at.is_some() {
+        tokens::revoke_family(db, stored.family_id).await?;
+        return Err(AppError::TokenReuseDetected);
+    }
+    if stored.expires_at <= OffsetDateTime::now_utc() {
+        return Err(AppError::Unauthenticated);
+    }
+
+    tokens::burn_refresh(db, stored.jti).await?;
+    issue_pair(db, settings, stored.user_id, stored.family_id).await
+}
+
+pub async fn resolve_guest_session(db: &Db, token: &str) -> Result<Option<Uuid>, AppError> {
+    Ok(tokens::find_guest_session(db, &hash_token(token)).await?)
+}
+
+pub struct IdentitySignIn<'a> {
+    pub provider: &'a str,
+    pub subject: &'a str,
+    pub email: Option<&'a str>,
+    pub display_name: Option<&'a str>,
+}
+
+fn resolve_display_name(input: &IdentitySignIn<'_>) -> Result<String, AppError> {
+    let offered = input
+        .display_name
+        .map(str::trim)
+        .filter(|name| !name.is_empty());
+
+    if let Some(name) = offered {
+        return Ok(name.to_owned());
+    }
+
+    input
+        .email
+        .and_then(|email| email.split('@').next())
+        .map(str::trim)
+        .filter(|local| !local.is_empty())
+        .map(str::to_owned)
+        .ok_or_else(|| AppError::Validation("a display name is required".to_owned()))
+}
+

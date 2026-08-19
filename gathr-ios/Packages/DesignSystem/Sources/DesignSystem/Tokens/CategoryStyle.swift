@@ -28,3 +28,34 @@ extension EventCategory {
     }
 }
 
+extension RSVPStatus {
+    public var tint: Color {
+        switch self {
+        case .going: Palette.statusGoing
+        case .maybe: Palette.statusMaybe
+        case .declined: Palette.statusDeclined
+        case .waitlisted: Palette.statusWaitlisted
+        case .invited: Palette.statusInvited
+        }
+    }
+
+    public var label: String {
+        switch self {
+        case .going: "Going"
+        case .maybe: "Maybe"
+        case .declined: "Can't go"
+        case .waitlisted: "Waitlisted"
+        case .invited: "Invited"
+        }
+    }
+
+    public var symbol: String {
+        switch self {
+        case .going: "checkmark.circle.fill"
+        case .maybe: "questionmark.circle.fill"
+        case .declined: "xmark.circle.fill"
+        case .waitlisted: "clock.fill"
+        case .invited: "envelope.fill"
+        }
+    }
+}

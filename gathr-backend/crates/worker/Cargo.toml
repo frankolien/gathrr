@@ -1,0 +1,30 @@
+[package]
+name = "gathr-worker"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "gathr-worker"
+path = "src/main.rs"
+
+[lib]
+name = "gathr_worker"
+path = "src/lib.rs"
+
+[dependencies]
+gathr-application.workspace = true
+gathr-common.workspace = true
+gathr-infra-db.workspace = true
+gathr-infra-push.workspace = true
+
+anyhow.workspace = true
+time.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+dotenvy.workspace = true
+sqlx.workspace = true

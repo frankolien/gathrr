@@ -503,3 +503,10 @@ Wrapped in a transaction that first locks the event row and checks the capacity 
 
 ---
 
+## 6. Claude Code Handoff (CLAUDE.md)
+
+### 6.1 CLAUDE.md (ready to paste)
+
+```markdown
+# CLAUDE.md: Gathr Engineering Rules
+

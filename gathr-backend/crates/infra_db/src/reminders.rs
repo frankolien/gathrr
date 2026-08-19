@@ -104,3 +104,13 @@ pub async fn mark_failed(
     .map_err(DbError::from_sqlx)
 }
 
+pub async fn pending_kinds(db: &Db, event_id: Uuid) -> Result<Vec<String>, DbError> {
+    sqlx::query_scalar!(
+        r#"SELECT kind FROM reminder_jobs
+           WHERE event_id = $1 AND status = 'pending' ORDER BY run_at"#,
+        event_id
+    )
+    .fetch_all(db)
+    .await
+    .map_err(DbError::from_sqlx)
+}

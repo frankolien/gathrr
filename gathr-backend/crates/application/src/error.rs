@@ -50,3 +50,27 @@ pub enum AppError {
     Db(#[from] DbError),
 }
 
+impl AppError {
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::Domain(error) => error.code(),
+            Self::NotFound => "not_found",
+            Self::Forbidden => "forbidden",
+            Self::Unauthenticated => "unauthenticated",
+            Self::TokenReuseDetected => "token_reuse_detected",
+            Self::InviteInvalid => "invite_invalid",
+            Self::IdempotencyConflict => "idempotency_conflict",
+            Self::Validation(_) => "validation_failed",
+            Self::IdentityRejected(_) => "identity_rejected",
+            Self::ProviderUnavailable => "provider_unavailable",
+            Self::OtpInvalid => "otp_invalid",
+            Self::OtpAttemptsExceeded => "otp_attempts_exceeded",
+            Self::DeliveryFailed(_) => "delivery_failed",
+            Self::CodeExhaustion | Self::Db(_) => "internal",
+        }
+    }
+
+    pub fn is_internal(&self) -> bool {
+        matches!(self, Self::CodeExhaustion | Self::Db(_))
+    }
+}

@@ -105,3 +105,94 @@ async fn rsvp(
     assert_eq!(response.status(), 200);
 }
 
+#[actix_web::test]
+async fn the_first_message_in_an_event_is_sequence_one() {
+    let state = state().await;
+    let app = service!(state);
+    let host = sign_in!(app, "Amara Chukwu");
+    let event = publish_event!(app, host);
+
+    let first = post_message!(app, host, event, "Doors at 7, come hungry");
+    assert_eq!(first.status(), 201);
+    assert_eq!(body_json(first).await["seq"], 1);
+
+    let second = post_message!(app, host, event, "Bring a friend");
+    assert_eq!(body_json(second).await["seq"], 2);
+}
+
+#[actix_web::test]
+async fn a_guest_who_rsvped_can_read_and_reply_but_a_stranger_can_do_neither() {
+    let state = state().await;
+    let app = service!(state);
+    let host = sign_in!(app, "Amara Chukwu");
+    let guest = sign_in!(app, "Tunde Bello");
+    let stranger = sign_in!(app, "Passing Stranger");
+    let event = publish_event!(app, host);
+
+    post_message!(app, host, event, "Doors at 7");
+    rsvp(&app, &guest, event).await;
+
+    let replied = post_message!(app, guest, event, "On my way");
+    assert_eq!(replied.status(), 201);
+
+    let read = test::call_service(
+        &app,
+        test::TestRequest::get()
+            .uri(&format!("/v1/events/{event}/messages"))
+            .insert_header(("authorization", format!("Bearer {guest}")))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(read.status(), 200);
+    let payload = body_json(read).await;
+    assert_eq!(payload["messages"].as_array().unwrap().len(), 2);
+    assert_eq!(payload["latest_seq"], 2);
+
+    let peeked = test::call_service(
+        &app,
+        test::TestRequest::get()
+            .uri(&format!("/v1/events/{event}/messages"))
+            .insert_header(("authorization", format!("Bearer {stranger}")))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(
+        peeked.status(),
+        403,
+        "an uninvited reader must not see the thread"
+    );
+
+    let intruded = post_message!(app, stranger, event, "hello?");
+    assert_eq!(intruded.status(), 403);
+}
+
+#[actix_web::test]
+async fn paging_after_a_sequence_returns_only_what_the_reader_has_not_seen() {
+    let state = state().await;
+    let app = service!(state);
+    let host = sign_in!(app, "Amara Chukwu");
+    let event = publish_event!(app, host);
+
+    for line in ["one", "two", "three"] {
+        post_message!(app, host, event, line);
+    }
+
+    let response = test::call_service(
+        &app,
+        test::TestRequest::get()
+            .uri(&format!("/v1/events/{event}/messages?after_seq=1"))
+            .insert_header(("authorization", format!("Bearer {host}")))
+            .to_request(),
+    )
+    .await;
+
+    let payload = body_json(response).await;
+    let bodies: Vec<&str> = payload["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|message| message["body"].as_str().unwrap())
+        .collect();
+    assert_eq!(bodies, vec!["two", "three"]);
+}
+

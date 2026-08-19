@@ -33,3 +33,49 @@ async fn a_development_build_hands_the_code_back_instead_of_sending_it() {
     assert!(code.chars().all(|character| character.is_ascii_digit()));
 }
 
+#[tokio::test]
+async fn without_a_mail_provider_a_real_request_fails_rather_than_pretending_to_send() {
+    let db = db().await;
+
+    let refused = otp::request(
+        &db,
+        Channel::Email,
+        "amara@example.com",
+        Delivery {
+            email: None,
+            reveal_instead_of_sending: false,
+        },
+    )
+    .await;
+
+    assert!(matches!(refused, Err(AppError::ProviderUnavailable)));
+}
+
+#[tokio::test]
+async fn a_failed_delivery_leaves_no_usable_code_behind() {
+    let db = db().await;
+    let destination = format!("undeliverable+{}@example.com", uuid::Uuid::new_v4());
+
+    let _ = otp::request(
+        &db,
+        Channel::Email,
+        &destination,
+        Delivery {
+            email: None,
+            reveal_instead_of_sending: false,
+        },
+    )
+    .await;
+
+    let settings = gathr_application::auth::TokenSettings {
+        secret: "test-secret".to_owned(),
+        access_ttl_minutes: 15,
+        refresh_ttl_days: 60,
+    };
+    let verified = otp::verify(&db, &settings, Channel::Email, &destination, "000000").await;
+
+    assert!(
+        matches!(verified, Err(AppError::OtpInvalid)),
+        "if the code never went out, nothing may be redeemable"
+    );
+}

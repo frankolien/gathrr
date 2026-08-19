@@ -29,7 +29,7 @@ fn status_for(code: &str) -> StatusCode {
         }
         "provider_unavailable" | "delivery_failed" => StatusCode::SERVICE_UNAVAILABLE,
         "forbidden" => StatusCode::FORBIDDEN,
-        "not_found" | "invite_invalid" => StatusCode::NOT_FOUND,
+        "not_found" | "invite_invalid" | "guest_session_invalid" => StatusCode::NOT_FOUND,
         "invite_expired" => StatusCode::GONE,
         "invite_exhausted"
         | "capacity_exceeded"

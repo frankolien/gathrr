@@ -4,8 +4,9 @@ use gathr_infra_db::users;
 use gathr_infra_oidc::{self as oidc, Provider};
 
 use crate::dto::{
-    DevSignInRequest, MeResponse, OAuthSignInRequest, OtpChallengeResponse, OtpRequest,
-    OtpVerifyRequest, RefreshRequest, TokenResponse, UpdateProfileRequest,
+    ClaimRequest, ClaimResponse, DevSignInRequest, MeResponse, OAuthSignInRequest,
+    OtpChallengeResponse, OtpRequest, OtpVerifyRequest, RefreshRequest, TokenResponse,
+    UpdateProfileRequest,
 };
 use crate::error::ApiError;
 use crate::extract::AuthUser;
@@ -47,6 +48,20 @@ pub async fn refresh(
         access_token: pair.access_token,
         refresh_token: pair.refresh_token,
         expires_in_seconds: pair.expires_in_seconds,
+    }))
+}
+
+pub async fn claim(
+    state: web::Data<AppState>,
+    user: AuthUser,
+    body: web::Json<ClaimRequest>,
+) -> Result<HttpResponse, ApiError> {
+    let claimed = gathr_application::claim::claim(&state.db, user.0, &body.guest_token).await?;
+
+    Ok(HttpResponse::Ok().json(ClaimResponse {
+        claimed: true,
+        rsvps_moved: claimed.rsvps_moved,
+        messages_moved: claimed.messages_moved,
     }))
 }
 

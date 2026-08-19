@@ -557,3 +557,15 @@ impl From<Vec<HostRecord>> for HostListResponse {
         }
     }
 }
+
+#[derive(Debug, Deserialize)]
+pub struct ClaimRequest {
+    pub guest_token: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ClaimResponse {
+    pub claimed: bool,
+    pub rsvps_moved: u64,
+    pub messages_moved: u64,
+}

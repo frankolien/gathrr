@@ -40,6 +40,7 @@ pub fn configure(cfg: &mut axw::ServiceConfig) {
                 .route("/auth/otp/verify", axw::post().to(auth::verify_code))
                 .route("/auth/refresh", axw::post().to(auth::refresh))
                 .route("/auth/logout", axw::post().to(auth::logout))
+                .route("/auth/claim", axw::post().to(auth::claim))
                 .route("/me", axw::get().to(auth::me))
                 .route("/me", axw::patch().to(auth::update_profile))
                 .route("/me", axw::delete().to(privacy::erase))

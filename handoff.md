@@ -1157,3 +1157,46 @@ Guests who RSVP'd from the web have no device token. Their `event_cancelled` and
 
 ---
 
+## 13. Security, Abuse, and Privacy
+
+### 13.1 Threat Model
+
+| Threat | Mitigation |
+|---|---|
+| Invite code enumeration | 10-char CSPRNG codes (5.1), 20 resolutions/min/IP, no distinction between "invalid" and "expired" on unauthenticated lookups |
+| OTP interception / brute force | 6 digits, 5-minute TTL, 5 attempts then destination lock, codes stored argon2id-hashed, constant-time compare |
+| SMS pumping fraud | Country allowlist (NG plus a small set), per-number and per-IP hourly caps, block premium-rate prefixes, alert on spend anomalies |
+| Guest cookie theft | httpOnly, Secure, SameSite=Lax, scoped to `/i/`, 90-day expiry, rotated on claim |
+| Refresh token theft | Rotation with family revocation on reuse (2.3) |
+| Chat spam / harassment | 5 messages / 10s per user per event, report, block, host removal, mute |
+| Guest list scraping | Guest list requires membership; the public projection exposes only a count |
+| Phone number exposure | Phone is never present in any guest-visible DTO — enforced by a serialization test, not by convention |
+| Malicious upload | Presign constrained by `content-type` allowlist and a `content-length-range` condition; server re-encodes to strip EXIF, including GPS |
+| Apple identity token forgery | Verify against Apple's JWKS with a cached key set, check `iss`, `aud` = bundle id, `exp`, and nonce |
+| Host impersonation on cancel | Cancel and edit require host or co-host; every lifecycle transition is audit-logged |
+
+### 13.2 Rate Limit Table
+
+| Endpoint | Limit |
+|---|---|
+| `POST /v1/auth/otp/request` | 3/hour/destination, 10/hour/IP |
+| `POST /v1/auth/otp/verify` | 5/code, then lock |
+| `GET /v1/invites/{code}` | 20/min/IP |
+| `POST /v1/events/{id}/rsvp` | 10/min/user |
+| `POST /v1/events/{id}/messages` | 5/10s/user/event |
+| `POST /v1/media/presign` | 20/hour/user |
+| `POST /v1/events` | 20/day/user |
+
+### 13.3 Data Protection
+
+Operating in Lagos brings the app under the **Nigeria Data Protection Act 2023** and the NDPC, alongside GDPR for any EU guests. Concretely required, not aspirational:
+
+- A lawful basis and a privacy notice presented before first data collection.
+- Data subject rights served by real endpoints: `GET /v1/me/export` and `DELETE /v1/me` (12.3), completing within 30 days.
+- Deletion semantics: user rows are hard-deleted; their messages become `[deleted]` tombstones preserving chat sequence integrity; hosted events transfer to a co-host or are cancelled.
+- Retention: OTP rows purged at 24 hours, idempotency records at 24 hours, refresh tokens at expiry + 30 days, analytics pseudonymized at 90 days.
+- Contacts are never uploaded. Invites are shared by link, never by harvesting an address book — this also removes an entire category of consent problem.
+- Minimize by default: a guest RSVP requires a display name, nothing else. Phone is optional and only enables cancellation SMS.
+
+---
+

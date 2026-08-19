@@ -91,3 +91,85 @@ pub async fn request(
     })
 }
 
+async fn deliver(
+    channel: Channel,
+    destination: &str,
+    code: &str,
+    email: Option<&Resend>,
+) -> Result<(), AppError> {
+    match channel {
+        Channel::Email => {
+            let sender = email.ok_or(AppError::ProviderUnavailable)?;
+            let (subject, body) = verification_message(code);
+            sender
+                .send(destination, &subject, &body)
+                .await
+                .map_err(|error| {
+                    tracing::error!(%error, "could not send a verification code");
+                    AppError::DeliveryFailed(error.to_string())
+                })
+        }
+    }
+}
+
+pub async fn verify(
+    db: &Db,
+    settings: &TokenSettings,
+    channel: Channel,
+    destination: &str,
+    code: &str,
+) -> Result<(Uuid, TokenPair), AppError> {
+    let destination = channel.normalize(destination)?;
+    let challenge = otp::find_pending(db, channel.name(), &destination)
+        .await?
+        .ok_or(AppError::OtpInvalid)?;
+
+    if challenge.attempts >= MAX_ATTEMPTS {
+        otp::consume(db, challenge.id).await?;
+        return Err(AppError::OtpAttemptsExceeded);
+    }
+    if challenge.expires_at <= OffsetDateTime::now_utc() {
+        otp::consume(db, challenge.id).await?;
+        return Err(AppError::OtpInvalid);
+    }
+    if auth::hash_token(code.trim()) != challenge.code_hash {
+        otp::record_failed_attempt(db, challenge.id).await?;
+        return Err(AppError::OtpInvalid);
+    }
+
+    otp::consume(db, challenge.id).await?;
+    let user = find_or_create(db, channel, &destination).await?;
+    let pair = auth::issue_pair(db, settings, user, Uuid::new_v4()).await?;
+    Ok((user, pair))
+}
+
+async fn find_or_create(db: &Db, channel: Channel, destination: &str) -> Result<Uuid, AppError> {
+    let existing = match channel {
+        Channel::Email => users::find_claimed_by_email(db, destination).await?,
+    };
+
+    if let Some(user) = existing {
+        return Ok(user.id);
+    }
+
+    let (email, phone) = match channel {
+        Channel::Email => (Some(destination), None),
+    };
+
+    let mut tx = db
+        .begin()
+        .await
+        .map_err(gathr_infra_db::DbError::from_sqlx)?;
+    let created =
+        users::insert_verified(&mut tx, placeholder_name(destination), email, phone).await?;
+    tx.commit()
+        .await
+        .map_err(gathr_infra_db::DbError::from_sqlx)?;
+
+    Ok(created.id)
+}
+
+fn placeholder_name(destination: &str) -> &str {
+    destination.split('@').next().unwrap_or(destination)
+}
+

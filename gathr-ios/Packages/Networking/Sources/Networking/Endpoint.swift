@@ -32,3 +32,8 @@ public struct Endpoint: Sendable {
     }
 }
 
+public enum IdempotencyKey {
+    public static func generateOncePerMutationNeverPerRetry() -> String {
+        UUID().uuidString
+    }
+}

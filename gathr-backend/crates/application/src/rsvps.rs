@@ -123,3 +123,121 @@ pub async fn submit_as_guest(db: &Db, input: GuestRsvpInput<'_>) -> Result<Guest
     })
 }
 
+pub async fn promote(
+    db: &Db,
+    event_id: Uuid,
+    actor_id: Uuid,
+    guest_id: Uuid,
+) -> Result<RsvpView, AppError> {
+    let mut tx = db.begin().await.map_err(DbError::from_sqlx)?;
+
+    let event = events::lock(&mut tx, event_id)
+        .await?
+        .ok_or(AppError::NotFound)?;
+    if event.host_id != actor_id {
+        return Err(AppError::Forbidden);
+    }
+
+    let current = rsvps::find_in_tx(&mut tx, event_id, guest_id)
+        .await?
+        .ok_or(AppError::NotFound)?;
+    let seats_held = rsvps::seats_held_excluding(&mut tx, event_id, guest_id).await?;
+
+    let outcome = rsvp::promote_from_waitlist(
+        current.status,
+        current.plus_ones,
+        CapacityContext {
+            capacity: event.capacity,
+            seats_held_excluding_actor: seats_held,
+            max_plus_ones: event.max_plus_ones,
+        },
+    )?;
+
+    let record = rsvps::upsert(
+        &mut tx,
+        event_id,
+        guest_id,
+        outcome.status,
+        outcome.plus_ones,
+        None,
+    )
+    .await?;
+    tx.commit().await.map_err(DbError::from_sqlx)?;
+
+    Ok(RsvpView {
+        event_id,
+        status: record.status,
+        plus_ones: record.plus_ones,
+        entered_waitlist: false,
+        seats_remaining: event
+            .capacity
+            .map(|capacity| (capacity - seats_held - 1 - record.plus_ones).max(0)),
+    })
+}
+
+pub async fn guest_list(
+    db: &Db,
+    event_id: Uuid,
+    actor_id: Uuid,
+) -> Result<Vec<GuestRecord>, AppError> {
+    let event = events::find(db, event_id)
+        .await?
+        .ok_or(AppError::NotFound)?;
+    let is_member =
+        event.host_id == actor_id || rsvps::find(db, event_id, actor_id).await?.is_some();
+    if !is_member {
+        return Err(AppError::Forbidden);
+    }
+    Ok(rsvps::list_guests(db, event_id).await?)
+}
+
+async fn apply(tx: &mut Tx<'_>, input: &SubmitRsvp) -> Result<RsvpView, AppError> {
+    let event = events::lock(tx, input.event_id)
+        .await?
+        .ok_or(AppError::NotFound)?;
+
+    event::guard_accepts_rsvps(observed_status(&event, OffsetDateTime::now_utc()))?;
+
+    let current = rsvps::find_in_tx(tx, input.event_id, input.actor_id).await?;
+    let seats_held = rsvps::seats_held_excluding(tx, input.event_id, input.actor_id).await?;
+
+    let outcome = rsvp::submit(
+        current.map(|record| record.status),
+        RsvpRequest {
+            status: input.status,
+            plus_ones: input.plus_ones,
+            accept_waitlist: input.accept_waitlist,
+        },
+        CapacityContext {
+            capacity: event.capacity,
+            seats_held_excluding_actor: seats_held,
+            max_plus_ones: event.max_plus_ones,
+        },
+    )?;
+
+    let record = rsvps::upsert(
+        tx,
+        input.event_id,
+        input.actor_id,
+        outcome.status,
+        outcome.plus_ones,
+        input.invite_id,
+    )
+    .await?;
+
+    let consumed = if record.status.holds_seats() {
+        1 + record.plus_ones
+    } else {
+        0
+    };
+
+    Ok(RsvpView {
+        event_id: input.event_id,
+        status: record.status,
+        plus_ones: record.plus_ones,
+        entered_waitlist: outcome.entered_waitlist,
+        seats_remaining: event
+            .capacity
+            .map(|capacity| (capacity - seats_held - consumed).max(0)),
+    })
+}

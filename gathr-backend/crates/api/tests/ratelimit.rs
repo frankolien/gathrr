@@ -42,3 +42,46 @@ fn one_noisy_caller_does_not_spend_another_callers_allowance() {
     );
 }
 
+#[test]
+fn buckets_do_not_borrow_from_each_other() {
+    let limiter = RateLimiter::default();
+    let other = Quota {
+        bucket: "other",
+        ..TIGHT
+    };
+
+    for _ in 0..TIGHT.allowance {
+        let _ = limiter.admit("198.51.100.7", TIGHT);
+    }
+
+    assert!(
+        limiter.admit("198.51.100.7", other).is_ok(),
+        "exhausting one route class must not lock a caller out of the rest of the api"
+    );
+}
+
+#[test]
+fn the_tightest_quotas_guard_code_issuing_and_invite_guessing() {
+    let verification = quota_for(&Method::POST, "/v1/auth/otp/request");
+    let invites = quota_for(&Method::GET, "/v1/invites/ABCDEFGHJK");
+    let reads = quota_for(&Method::GET, "/v1/events");
+
+    assert_eq!(verification.bucket, "verification");
+    assert_eq!(invites.bucket, "invite_lookup");
+    assert!(
+        verification.allowance < invites.allowance,
+        "issuing codes must be scarcer than looking up invites"
+    );
+    assert!(
+        invites.allowance < reads.allowance,
+        "invite lookups are the enumeration surface and must be tighter than ordinary reads"
+    );
+}
+
+#[test]
+fn writes_are_scarcer_than_reads_on_the_same_path() {
+    assert!(
+        quota_for(&Method::POST, "/v1/events/x/messages").allowance
+            < quota_for(&Method::GET, "/v1/events/x/messages").allowance
+    );
+}

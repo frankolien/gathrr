@@ -38,3 +38,20 @@ pub async fn list(
     Ok(HttpResponse::Ok().json(responses))
 }
 
+pub async fn resolve(
+    state: web::Data<AppState>,
+    path: web::Path<String>,
+) -> Result<HttpResponse, ApiError> {
+    let resolved = invites::resolve(&state.db, &path.into_inner()).await?;
+
+    Ok(HttpResponse::Ok().json(PublicInviteResponse {
+        event_id: resolved.event.id,
+        title: resolved.event.title,
+        category: resolved.event.category,
+        location_name: resolved.event.location_name,
+        starts_at: resolved.event.starts_at,
+        timezone: resolved.event.timezone,
+        host_first_name: resolved.host_first_name,
+        going_guests: resolved.going_guests,
+    }))
+}

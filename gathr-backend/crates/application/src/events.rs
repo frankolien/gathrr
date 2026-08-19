@@ -80,3 +80,66 @@ pub async fn create(db: &Db, input: CreateEvent) -> Result<EventSummaryRecord, A
     reload(db, record.id).await
 }
 
+pub async fn publish(
+    db: &Db,
+    event_id: Uuid,
+    actor_id: Uuid,
+) -> Result<EventSummaryRecord, AppError> {
+    let record = load_manageable(db, event_id, actor_id).await?;
+    let schedule = EventSchedule {
+        starts_at: record.starts_at,
+        ends_at: record.ends_at,
+    };
+    let next = event::publish(record.status, &record.title, Some(schedule))?;
+    events::set_status(db, event_id, next).await?;
+    crate::notifications::plan_reminders(db, event_id).await?;
+    crate::activity::record_published(db, event_id).await;
+    reload(db, event_id).await
+}
+
+pub async fn cancel(
+    db: &Db,
+    event_id: Uuid,
+    actor_id: Uuid,
+) -> Result<EventSummaryRecord, AppError> {
+    let record = load_manageable(db, event_id, actor_id).await?;
+    let next = event::cancel(record.status)?;
+    events::set_status(db, event_id, next).await?;
+    crate::notifications::cancel_reminders(db, event_id).await?;
+    crate::activity::record_cancelled(db, event_id, actor_id).await;
+    reload(db, event_id).await
+}
+
+pub async fn detail(db: &Db, event_id: Uuid) -> Result<EventDetail, AppError> {
+    let summary = events::find_summary(db, event_id)
+        .await?
+        .ok_or(AppError::NotFound)?;
+    let host = users::find(db, summary.event.host_id)
+        .await?
+        .ok_or(AppError::NotFound)?;
+
+    Ok(EventDetail {
+        observed_status: observed_status(&summary.event, OffsetDateTime::now_utc()),
+        event: summary.event,
+        going_guests: summary.going_guests,
+        preview_guest_names: summary.preview_guest_names,
+        host_display_name: host.display_name,
+    })
+}
+
+pub async fn feed(
+    db: &Db,
+    user_id: Uuid,
+    filter: &str,
+) -> Result<Vec<EventSummaryRecord>, AppError> {
+    let now = OffsetDateTime::now_utc();
+    match filter {
+        "this_week" => Ok(events::feed_this_week(db, user_id, now, now + Duration::days(7)).await?),
+        "hosting" => Ok(events::feed_hosting(db, user_id).await?),
+        "attending" => Ok(events::feed_attending(db, user_id).await?),
+        other => Err(AppError::Validation(format!(
+            "unknown feed filter {other}, expected this_week, hosting or attending"
+        ))),
+    }
+}
+

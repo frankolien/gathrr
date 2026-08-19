@@ -303,3 +303,73 @@ Error format:
 
 ---
 
+## 3. SwiftUI iOS Architecture
+
+### 3.1 Pattern and Concurrency
+
+Use a pragmatic MV/MVVM hybrid on the Observation framework (@Observable), which is pull-based and access-tracked for precise invalidation and better performance than the Combine-based ObservableObject. Views that only render (pure views like Text/Image) need no view model; screens with real logic (event creation, RSVP, chat) get an @Observable class isolated to @MainActor. Networking and persistence live in actors. Adopt Swift 6 strict concurrency: models Sendable, services as actors, view models @MainActor, and lean on region-based isolation, which the compiler uses to cut required Sendable annotations by 50 to 70% in a typical migration.
+
+Minimum target: iOS 17 for @Observable. An iOS 18 floor buys the latest concurrency and SwiftUI conveniences but cuts off the iPhone X/8/8 Plus generation, which still carries real share in the Lagos secondhand market. Decision D4 in Section 17 sets the floor at **iOS 17.0** for this reason; revisit after beta telemetry.
+
+### 3.2 Modularization (SPM Packages)
+
+```
+GathrApp/                 # app target, DI composition root
+Packages/
+  DesignSystem/           # colors, typography, components (cards, chips, avatar cluster)
+  Models/                 # Sendable domain models, DTOs
+  Networking/             # URLSession client, endpoints, WebSocket client
+  Persistence/            # GRDB/SQLiteData cache, offline queue
+  Features/
+    Onboarding/
+    Home/
+    EventDetail/
+    Create/
+    Chat/
+    Profile/
+```
+
+### 3.3 Navigation
+
+NavigationStack driven by a per-tab Router (an @Observable holding a typed path of a Route enum). Each tab owns its own independent stack (the tab-router pattern avoids cross-tab path corruption). Universal links map to Route values so an invite link deep-links straight to EventDetail. A router gives coordinator-level power with less ceremony than a full coordinator hierarchy.
+
+### 3.4 Dependency Injection
+
+Environment-based injection of service protocols (a lightweight container assembled at the composition root), so features depend on protocols (e.g. `EventService`, `ChatService`) and can be previewed/tested with fakes.
+
+### 3.5 Local Cache and Offline
+
+Use GRDB (or SQLiteData, the Point-Free SwiftData alternative built on GRDB with optional CloudKit sync) rather than SwiftData for the offline-first cache: direct SQLite access, better read/write performance (frameworks that talk directly to SQLite outperform Core Data, which outperforms SwiftData), usability outside SwiftUI (Observable models, UIKit), and full control over the sync/outbox table. SwiftData is viable for simpler needs but its higher abstraction costs performance and control. An outbox table holds queued mutations (RSVP, message) with idempotency keys, retried on reconnect. Note also the third-party vendor-risk lesson: Realm/Atlas Device Sync reached end-of-life with cloud sync ending September 30, 2025, so prefer Apple-first or self-controlled local stores.
+
+### 3.6 Networking and Chat Client
+
+- URLSession-based client with async endpoints, typed via an `Endpoint` protocol; async/await throughout; typed errors.
+- Chat over URLSessionWebSocketTask wrapped in an actor; auto-reconnect with backoff; messages reconciled by per-event seq.
+- Push registration via UNUserNotificationCenter; token posted to /v1/devices.
+- Image loading/caching: a small async image cache (or a vetted library) reading resized R2 variants.
+
+### 3.7 Design System
+
+Light, iOS-native aesthetic matching the mockups: system font (SF) with a defined type scale, soft cards with rounded corners and subtle shadows, category chips (BIRTHDAY etc.), countdown chips ("In 9 days"), avatar cluster with "+14 going". Centralize color tokens and spacing in DesignSystem.
+
+### 3.8 Testing
+
+Swift Testing framework (@Test, #expect, parameterized tests, tags), which is macro-powered and runs side by side with XCTest during migration. Unit-test view models and services with injected fakes; snapshot-test DesignSystem components.
+
+### 3.9 Key Protocols
+
+```swift
+protocol EventService: Sendable {
+    func feed(_ filter: FeedFilter) async throws -> [Event]
+    func detail(_ id: Event.ID) async throws -> EventDetail
+    func rsvp(_ id: Event.ID, status: RSVPStatus, plusOnes: Int, idempotencyKey: String) async throws -> RSVP
+}
+protocol ChatService: Sendable {
+    func history(_ id: Event.ID, cursor: String?) async throws -> Page<Message>
+    func connect(_ id: Event.ID) async throws -> AsyncStream<Message>
+    func send(_ id: Event.ID, body: String, idempotencyKey: String) async throws
+}
+```
+
+---
+

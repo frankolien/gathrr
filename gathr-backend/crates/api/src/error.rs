@@ -36,9 +36,8 @@ fn status_for(code: &str) -> StatusCode {
         | "event_cancelled"
         | "event_ended"
         | "idempotency_conflict" => StatusCode::CONFLICT,
-        "plus_ones_exceeded" | "validation_failed" | "message_invalid" => {
-            StatusCode::UNPROCESSABLE_ENTITY
-        }
+        "plus_ones_exceeded" | "validation_failed" | "message_invalid" | "report_invalid"
+        | "self_target" => StatusCode::UNPROCESSABLE_ENTITY,
         _ => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }

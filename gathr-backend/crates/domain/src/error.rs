@@ -48,3 +48,21 @@ pub enum DomainError {
     MessageTooLong,
 }
 
+impl DomainError {
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::CapacityExceeded { .. } => "capacity_exceeded",
+            Self::PlusOnesExceeded { .. } | Self::PlusOnesNegative => "plus_ones_exceeded",
+            Self::IllegalRsvpTransition { .. } | Self::IllegalEventTransition { .. } => {
+                "validation_failed"
+            }
+            Self::EventCancelled => "event_cancelled",
+            Self::EventEnded => "event_ended",
+            Self::EventIncomplete { .. } => "validation_failed",
+            Self::InviteExpired => "invite_expired",
+            Self::InviteExhausted => "invite_exhausted",
+            Self::InviteCodeInvalid => "invite_invalid",
+            Self::MessageEmpty | Self::MessageTooLong => "message_invalid",
+        }
+    }
+}

@@ -133,3 +133,64 @@ fn a_google_token_presented_as_apple_is_rejected_on_issuer() {
     ));
 }
 
+#[test]
+fn a_token_signed_by_an_unknown_key_is_rejected() {
+    let token = sign(&google_claims());
+    let foreign: JwkSet = serde_json::from_value(serde_json::json!({
+        "keys": [{ "kid": "someone-elses-key", "n": TEST_ONLY_MODULUS, "e": "AQAB" }]
+    }))
+    .expect("the fixture key set should parse");
+
+    assert!(matches!(
+        verify(&token, &foreign, Provider::Google, &audiences(), None),
+        Err(OidcError::UnknownSigningKey)
+    ));
+}
+
+#[test]
+fn apple_matches_the_nonce_by_its_sha256_and_google_matches_it_verbatim() {
+    let raw = "1f9a3c";
+
+    let mut google = google_claims();
+    google.nonce = Some(raw.to_owned());
+    let google_token = sign(&google);
+    assert!(verify(
+        &google_token,
+        &keys(),
+        Provider::Google,
+        &audiences(),
+        Some(raw)
+    )
+    .is_ok());
+
+    let mut apple = google_claims();
+    apple.iss = "https://appleid.apple.com".to_owned();
+    apple.nonce = Some(Provider::Apple.expected_nonce(raw));
+    let apple_token = sign(&apple);
+    assert!(verify(
+        &apple_token,
+        &keys(),
+        Provider::Apple,
+        &audiences(),
+        Some(raw)
+    )
+    .is_ok());
+}
+
+#[test]
+fn a_replayed_token_from_a_different_sign_in_attempt_is_rejected() {
+    let mut claims = google_claims();
+    claims.nonce = Some("nonce-from-another-attempt".to_owned());
+    let token = sign(&claims);
+
+    assert!(matches!(
+        verify(
+            &token,
+            &keys(),
+            Provider::Google,
+            &audiences(),
+            Some("this-attempts-nonce")
+        ),
+        Err(OidcError::NonceMismatch)
+    ));
+}

@@ -46,6 +46,24 @@ pub enum DomainError {
         crate::message::MAX_MESSAGE_LENGTH
     )]
     MessageTooLong,
+
+    #[error("a report is about a message or a user, nothing else")]
+    ReportSubjectUnknown,
+
+    #[error("that is not a reason anyone can act on")]
+    ReportReasonUnknown,
+
+    #[error(
+        "report detail cannot be longer than {} characters",
+        crate::report::MAX_REPORT_DETAIL_LENGTH
+    )]
+    ReportDetailTooLong,
+
+    #[error("you cannot block yourself")]
+    SelfBlock,
+
+    #[error("you cannot report yourself")]
+    SelfReport,
 }
 
 impl DomainError {
@@ -63,6 +81,10 @@ impl DomainError {
             Self::InviteExhausted => "invite_exhausted",
             Self::InviteCodeInvalid => "invite_invalid",
             Self::MessageEmpty | Self::MessageTooLong => "message_invalid",
+            Self::ReportSubjectUnknown | Self::ReportReasonUnknown | Self::ReportDetailTooLong => {
+                "report_invalid"
+            }
+            Self::SelfBlock | Self::SelfReport => "self_target",
         }
     }
 }

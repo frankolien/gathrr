@@ -1117,6 +1117,8 @@ Guests who RSVP'd from the web have no device token. Their `event_cancelled` and
 | `provider_unavailable` | 503 | That provider is not configured or its key set is unreachable; offer the other provider |
 | `otp_invalid` | 401 | Decrement the visible attempt counter |
 | `otp_attempts_exceeded` | 429 | Lock the destination, force a new request |
+| `report_invalid` | 422 | Unknown subject or reason, or detail over 1 000 characters — fix the payload, never retry blind |
+| `self_target` | 422 | You cannot report or block yourself; hide the control rather than surfacing this |
 | `internal` | 500 | Show `X-Request-Id` in the error UI for support |
 
 ### 12.3 Endpoints Added Beyond 2.11
@@ -1149,10 +1151,12 @@ Guests who RSVP'd from the web have no device token. Their `event_cancelled` and
 | POST | `/v1/events/{id}/guests/{uid}/promote` | Waitlist promotion |
 | POST | `/v1/events/{id}/checkin` | Attendance scan (8.10) |
 | POST | `/v1/events/{id}/mute` | Per-event notification mute |
-| POST | `/v1/reports` | Report a message or user |
-| POST | `/v1/blocks` | Block a user |
-| DELETE | `/v1/me` | Account deletion (13.4) |
-| GET | `/v1/me/export` | Data export (13.4) |
+| POST | `/v1/reports` | Report a message or user; re-reporting the same subject updates the row rather than piling up |
+| POST | `/v1/blocks` | Block a user; returns the caller's full block list |
+| GET | `/v1/blocks` | The caller's block list |
+| DELETE | `/v1/blocks/{uid}` | Unblock |
+| DELETE | `/v1/me` | Account deletion (13.3) |
+| GET | `/v1/me/export` | Data export (13.3), served as a `gathr-export.json` attachment |
 | GET | `/health`, `/ready` | Liveness and readiness |
 
 ---
@@ -1193,7 +1197,9 @@ Operating in Lagos brings the app under the **Nigeria Data Protection Act 2023**
 
 - A lawful basis and a privacy notice presented before first data collection.
 - Data subject rights served by real endpoints: `GET /v1/me/export` and `DELETE /v1/me` (12.3), completing within 30 days.
-- Deletion semantics: user rows are hard-deleted; their messages become `[deleted]` tombstones preserving chat sequence integrity; hosted events transfer to a co-host or are cancelled.
+- Deletion semantics: user rows are hard-deleted; their messages become tombstones — `redacted_at` set, body blanked, `sender_id` nulled — preserving chat sequence integrity so everyone else's `seq` still reads straight; hosted events transfer to a co-host or are cancelled.
+- Until co-hosts exist, `DELETE /v1/me` takes the second branch: every event the account still hosts is cancelled (which cancels its reminder jobs), then removed with the account. The response reports `events_cancelled` and `messages_redacted` so the client can say what actually happened. Once co-hosts land, transfer replaces removal and this note goes away.
+- Blocks are symmetric on read: a block hides the blocked person's messages from the blocker *and* the blocker's messages from them, so neither can talk past the other in a shared thread.
 - Retention: OTP rows purged at 24 hours, idempotency records at 24 hours, refresh tokens at expiry + 30 days, analytics pseudonymized at 90 days.
 - Contacts are never uploaded. Invites are shared by link, never by harvesting an address book — this also removes an entire category of consent problem.
 - Minimize by default: a guest RSVP requires a display name, nothing else. Phone is optional and only enables cancellation SMS.

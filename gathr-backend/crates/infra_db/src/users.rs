@@ -89,3 +89,22 @@ pub async fn find_claimed_by_email(db: &Db, email: &str) -> Result<Option<UserRe
     .map_err(DbError::from_sqlx)
 }
 
+pub async fn insert_verified(
+    tx: &mut Tx<'_>,
+    display_name: &str,
+    email: Option<&str>,
+    phone: Option<&str>,
+) -> Result<UserRecord, DbError> {
+    sqlx::query_as!(
+        UserRecord,
+        r#"INSERT INTO users (display_name, email, phone, is_guest)
+           VALUES ($1, $2, $3, false)
+           RETURNING id, display_name, phone, is_guest, bio"#,
+        display_name,
+        email,
+        phone
+    )
+    .fetch_one(&mut **tx)
+    .await
+    .map_err(DbError::from_sqlx)
+}

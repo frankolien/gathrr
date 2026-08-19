@@ -46,3 +46,61 @@ pub async fn cancel_for_event(db: &Db, event_id: Uuid) -> Result<(), DbError> {
     .map_err(DbError::from_sqlx)
 }
 
+pub async fn claim_due(
+    tx: &mut Tx<'_>,
+    now: OffsetDateTime,
+    limit: i64,
+) -> Result<Vec<ReminderRecord>, DbError> {
+    sqlx::query_as!(
+        ReminderRecord,
+        r#"UPDATE reminder_jobs SET status = 'running', locked_at = now()
+           WHERE id IN (
+             SELECT id FROM reminder_jobs
+             WHERE status = 'pending' AND run_at <= $1
+             ORDER BY run_at
+             FOR UPDATE SKIP LOCKED
+             LIMIT $2
+           )
+           RETURNING id, event_id, kind, attempts"#,
+        now,
+        limit
+    )
+    .fetch_all(&mut **tx)
+    .await
+    .map_err(DbError::from_sqlx)
+}
+
+pub async fn mark_sent(db: &Db, id: Uuid) -> Result<(), DbError> {
+    sqlx::query!(
+        r#"UPDATE reminder_jobs SET status = 'sent', locked_at = NULL WHERE id = $1"#,
+        id
+    )
+    .execute(db)
+    .await
+    .map(|_| ())
+    .map_err(DbError::from_sqlx)
+}
+
+pub async fn mark_failed(
+    db: &Db,
+    id: Uuid,
+    reason: &str,
+    max_attempts: i32,
+) -> Result<(), DbError> {
+    sqlx::query!(
+        r#"UPDATE reminder_jobs
+           SET attempts = attempts + 1,
+               locked_at = NULL,
+               last_error = $2,
+               status = CASE WHEN attempts + 1 >= $3 THEN 'failed' ELSE 'pending' END
+           WHERE id = $1"#,
+        id,
+        reason,
+        max_attempts
+    )
+    .execute(db)
+    .await
+    .map(|_| ())
+    .map_err(DbError::from_sqlx)
+}
+

@@ -194,3 +194,85 @@ fn resolve_display_name(input: &IdentitySignIn<'_>) -> Result<String, AppError> 
         .ok_or_else(|| AppError::Validation("a display name is required".to_owned()))
 }
 
+pub async fn sign_in_with_identity(
+    db: &Db,
+    settings: &TokenSettings,
+    input: IdentitySignIn<'_>,
+) -> Result<(Uuid, TokenPair), AppError> {
+    if let Some(user) = identities::find_user(db, input.provider, input.subject).await? {
+        let pair = issue_pair(db, settings, user.id, Uuid::new_v4()).await?;
+        return Ok((user.id, pair));
+    }
+
+    let display_name = resolve_display_name(&input)?;
+
+    let mut tx = db
+        .begin()
+        .await
+        .map_err(gathr_infra_db::DbError::from_sqlx)?;
+    let user = users::insert(&mut tx, &display_name, None, false).await?;
+    identities::link(&mut tx, user.id, input.provider, input.subject, input.email).await?;
+    tx.commit()
+        .await
+        .map_err(gathr_infra_db::DbError::from_sqlx)?;
+
+    let pair = issue_pair(db, settings, user.id, Uuid::new_v4()).await?;
+    Ok((user.id, pair))
+}
+
+pub struct ProfileUpdate<'a> {
+    pub display_name: Option<&'a str>,
+    pub bio: Option<Option<&'a str>>,
+    pub avatar_media_id: Option<Uuid>,
+}
+
+pub const MAX_BIO_LENGTH: usize = 300;
+
+pub async fn update_profile(
+    db: &Db,
+    user_id: Uuid,
+    update: ProfileUpdate<'_>,
+) -> Result<(), AppError> {
+    if let Some(display_name) = update.display_name {
+        if display_name.trim().is_empty() {
+            return Err(AppError::Validation(
+                "a display name is required".to_owned(),
+            ));
+        }
+    }
+    if let Some(Some(bio)) = update.bio {
+        if bio.chars().count() > MAX_BIO_LENGTH {
+            return Err(AppError::Validation(format!(
+                "a bio cannot be longer than {MAX_BIO_LENGTH} characters"
+            )));
+        }
+    }
+
+    if let Some(media_id) = update.avatar_media_id {
+        gathr_infra_db::media::find_owned(db, media_id, user_id)
+            .await?
+            .ok_or(AppError::NotFound)?;
+    }
+
+    let trimmed_name = update.display_name.map(str::trim);
+    let trimmed_bio = update
+        .bio
+        .map(|bio| bio.map(str::trim).filter(|value| !value.is_empty()));
+
+    users::update_profile(
+        db,
+        user_id,
+        users::ProfileEdit {
+            display_name: trimmed_name,
+            bio: trimmed_bio,
+            avatar_media_id: update.avatar_media_id,
+        },
+    )
+    .await?
+    .map(|_| ())
+    .ok_or(AppError::NotFound)
+}
+
+pub async fn revoke_all_sessions(db: &Db, user_id: Uuid) -> Result<(), AppError> {
+    Ok(tokens::revoke_all_for_user(db, user_id).await?)
+}

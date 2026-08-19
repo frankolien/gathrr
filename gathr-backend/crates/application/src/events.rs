@@ -179,3 +179,88 @@ pub struct EditEvent {
     pub max_plus_ones: Option<i32>,
 }
 
+pub async fn edit(
+    db: &Db,
+    event_id: Uuid,
+    actor_id: Uuid,
+    edit: EditEvent,
+) -> Result<EventSummaryRecord, AppError> {
+    let current = load_manageable(db, event_id, actor_id).await?;
+
+    if let Some(title) = edit.title.as_deref() {
+        if title.trim().is_empty() {
+            return Err(AppError::Validation("a title is required".to_owned()));
+        }
+    }
+    if let Some(Some(capacity)) = edit.capacity {
+        if capacity <= 0 {
+            return Err(AppError::Validation(
+                "capacity must be a positive number".to_owned(),
+            ));
+        }
+    }
+
+    let starts_at = edit.starts_at.unwrap_or(current.starts_at);
+    if let Some(ends_at) = edit.ends_at.unwrap_or(current.ends_at) {
+        if ends_at <= starts_at {
+            return Err(AppError::Validation(
+                "an event cannot end before it starts".to_owned(),
+            ));
+        }
+    }
+
+    let category = edit.category.map(|category| category.as_str().to_owned());
+
+    let mut tx = db.begin().await.map_err(DbError::from_sqlx)?;
+    events::lock(&mut tx, event_id)
+        .await?
+        .ok_or(AppError::NotFound)?;
+
+    if let Some(Some(capacity)) = edit.capacity {
+        let seats_taken = rsvps::seats_held_excluding(&mut tx, event_id, Uuid::nil()).await?;
+        if capacity < seats_taken {
+            return Err(AppError::Validation(format!(
+                "{seats_taken} seats are already taken, so capacity cannot drop to {capacity}"
+            )));
+        }
+    }
+
+    events::update(
+        &mut tx,
+        event_id,
+        EventEdit {
+            title: edit.title.as_deref(),
+            category: category.as_deref(),
+            description: edit.description.as_ref().map(|value| value.as_deref()),
+            location_name: edit.location_name.as_ref().map(|value| value.as_deref()),
+            starts_at: edit.starts_at,
+            ends_at: edit.ends_at,
+            timezone: edit.timezone.as_deref(),
+            capacity: edit.capacity,
+            max_plus_ones: edit.max_plus_ones,
+        },
+    )
+    .await?;
+    tx.commit().await.map_err(DbError::from_sqlx)?;
+
+    reload(db, event_id).await
+}
+
+pub async fn remove_guest(
+    db: &Db,
+    event_id: Uuid,
+    actor_id: Uuid,
+    guest_id: Uuid,
+) -> Result<(), AppError> {
+    let event = load_manageable(db, event_id, actor_id).await?;
+    if event.host_id == guest_id {
+        return Err(AppError::Validation(
+            "a host cannot be removed from their own event".to_owned(),
+        ));
+    }
+
+    rsvps::remove(db, event_id, guest_id)
+        .await?
+        .then_some(())
+        .ok_or(AppError::NotFound)
+}

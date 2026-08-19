@@ -131,3 +131,65 @@ async fn a_host_can_edit_the_fields_a_guest_reads_and_leave_the_rest_alone() {
     );
 }
 
+#[actix_web::test]
+async fn sending_null_clears_a_field_while_omitting_it_does_not() {
+    let state = state().await;
+    let app = service!(state);
+    let (host, _) = sign_in!(app, "Amara Chukwu");
+    let event = publish_event!(app, host, 40);
+
+    patch_event!(app, host, event, json!({ "location_name": "Lekki, Lagos" }));
+
+    let cleared = patch_event!(app, host, event, json!({ "location_name": null }));
+    assert_eq!(cleared.status(), 200);
+    assert!(body_json(cleared).await["location_name"].is_null());
+
+    let untouched = patch_event!(app, host, event, json!({ "title": "Still On" }));
+    assert!(
+        body_json(untouched).await["location_name"].is_null(),
+        "omitting a field must not resurrect it"
+    );
+}
+
+#[actix_web::test]
+async fn capacity_cannot_be_cut_below_the_seats_already_promised() {
+    let state = state().await;
+    let app = service!(state);
+    let (host, _) = sign_in!(app, "Amara Chukwu");
+    let (guest, _) = sign_in!(app, "Tunde Bello");
+    let event = publish_event!(app, host, 10);
+
+    rsvp!(app, guest, event, 2);
+
+    let squeezed = patch_event!(app, host, event, json!({ "capacity": 2 }));
+    assert_eq!(
+        squeezed.status(),
+        422,
+        "three seats are taken, so a capacity of two would strand someone"
+    );
+    assert_eq!(
+        body_json(squeezed).await["error"]["code"],
+        "validation_failed"
+    );
+
+    let honest = patch_event!(app, host, event, json!({ "capacity": 3 }));
+    assert_eq!(honest.status(), 200);
+    assert_eq!(body_json(honest).await["capacity"], 3);
+}
+
+#[actix_web::test]
+async fn an_event_cannot_be_edited_to_end_before_it_starts() {
+    let state = state().await;
+    let app = service!(state);
+    let (host, _) = sign_in!(app, "Amara Chukwu");
+    let event = publish_event!(app, host, 40);
+
+    let response = patch_event!(
+        app,
+        host,
+        event,
+        json!({ "ends_at": "2027-09-08T17:00:00Z" })
+    );
+    assert_eq!(response.status(), 422);
+}
+

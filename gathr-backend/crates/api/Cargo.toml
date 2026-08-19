@@ -1,0 +1,45 @@
+[package]
+name = "gathr-api"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+name = "gathr_api"
+path = "src/lib.rs"
+
+[[bin]]
+name = "gathr-api"
+path = "src/main.rs"
+
+[dependencies]
+gathr-application.workspace = true
+gathr-common.workspace = true
+gathr-domain.workspace = true
+gathr-infra-db.workspace = true
+gathr-infra-email.workspace = true
+gathr-infra-media.workspace = true
+gathr-infra-oidc.workspace = true
+
+actix-web.workspace = true
+actix-ws.workspace = true
+anyhow.workspace = true
+futures-util.workspace = true
+minijinja.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sqlx.workspace = true
+sha2.workspace = true
+time.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+actix-http = "3"
+actix-test = "0.1"
+awc = "3"
+futures-util.workspace = true
+dotenvy.workspace = true
+tokio.workspace = true

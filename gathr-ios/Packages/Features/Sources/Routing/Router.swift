@@ -38,3 +38,34 @@ public enum AppTab: String, Hashable, Sendable, CaseIterable {
     }
 }
 
+@MainActor
+@Observable
+public final class Router {
+    public var path: [Route] = []
+
+    public init() {}
+
+    public func push(_ route: Route) {
+        path.append(route)
+    }
+
+    public func pop() {
+        guard !path.isEmpty else { return }
+        path.removeLast()
+    }
+
+    public func popToRoot() {
+        path.removeAll()
+    }
+
+    public func replace(with route: Route) {
+        path = [route]
+    }
+
+    public func handle(universalLink url: URL) -> Bool {
+        let parts = url.pathComponents.filter { $0 != "/" }
+        guard parts.count == 2, parts[0] == "i" else { return false }
+        push(.invite(parts[1]))
+        return true
+    }
+}

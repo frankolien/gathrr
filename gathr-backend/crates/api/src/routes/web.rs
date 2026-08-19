@@ -119,3 +119,52 @@ pub async fn guest_rsvp(
     }
 }
 
+async fn render_invite(
+    state: &AppState,
+    code: &str,
+    notice: Option<&str>,
+    display_name: &str,
+    plus_ones: i32,
+    accept_waitlist: bool,
+) -> Result<HttpResponse, ApiError> {
+    let resolved = invites::resolve(&state.db, code).await?;
+    let event = &resolved.event;
+
+    let html = render(
+        state,
+        "invite.html",
+        context! {
+            title => event.title.clone(),
+            when => long_when(event.starts_at, &event.timezone),
+            location => event.location_name.clone(),
+            category_label => category_label(event.category),
+            tint => category_tint(event.category),
+            host_first_name => resolved.host_first_name.clone(),
+            going_guests => resolved.going_guests,
+            code => resolved.invite.code.clone(),
+            invite_url => format!("{}/i/{}", state.config.public_base_url, resolved.invite.code),
+            max_plus_ones => event.max_plus_ones,
+            notice => notice,
+            display_name => display_name,
+            plus_ones => plus_ones,
+            accept_waitlist => if accept_waitlist { "true" } else { "false" },
+        },
+    )?;
+
+    Ok(HttpResponse::Ok()
+        .content_type(ContentType::html())
+        .body(html))
+}
+
+fn render(state: &AppState, template: &str, ctx: minijinja::Value) -> Result<String, ApiError> {
+    state
+        .templates
+        .get_template(template)
+        .and_then(|template| template.render(ctx))
+        .map_err(|error| {
+            tracing::error!(%error, template, "template render failed");
+            ApiError(AppError::Validation(
+                "could not render this page".to_owned(),
+            ))
+        })
+}

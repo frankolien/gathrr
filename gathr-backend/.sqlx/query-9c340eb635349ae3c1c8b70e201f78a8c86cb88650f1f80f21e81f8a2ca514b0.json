@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO event_hosts (event_id, user_id, role, added_by)\n           VALUES ($1, $2, 'co_host', $3)\n           ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9c340eb635349ae3c1c8b70e201f78a8c86cb88650f1f80f21e81f8a2ca514b0"
+}

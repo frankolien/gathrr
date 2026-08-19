@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO notifications (user_id, actor_id, event_id, kind)\n           SELECT audience.user_id, $2, $1, ($3::text)::notification_kind\n           FROM (\n             SELECT r.user_id FROM rsvps r\n             WHERE r.event_id = $1 AND r.status <> 'declined'\n             UNION\n             SELECT h.user_id FROM event_hosts h WHERE h.event_id = $1\n           ) AS audience\n           WHERE audience.user_id IS DISTINCT FROM $2\n             AND NOT EXISTS (\n               SELECT 1 FROM event_mutes m\n               WHERE m.user_id = audience.user_id AND m.event_id = $1\n             )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "340a2f56431baddc94165c95d41f0025ec63555da1a62f75178493e754da9634"
+}

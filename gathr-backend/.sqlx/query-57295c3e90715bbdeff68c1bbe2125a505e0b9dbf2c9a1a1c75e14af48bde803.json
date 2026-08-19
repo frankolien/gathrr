@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO notifications (user_id, actor_id, event_id, kind)\n           SELECT h.user_id, $2, h.event_id, ($3::text)::notification_kind\n           FROM event_hosts h\n           WHERE h.event_id = $1\n             AND h.user_id <> $2\n             AND NOT EXISTS (\n               SELECT 1 FROM event_mutes m\n               WHERE m.user_id = h.user_id AND m.event_id = h.event_id\n             )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "57295c3e90715bbdeff68c1bbe2125a505e0b9dbf2c9a1a1c75e14af48bde803"
+}

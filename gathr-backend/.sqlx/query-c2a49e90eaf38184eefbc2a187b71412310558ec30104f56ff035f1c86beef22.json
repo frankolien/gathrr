@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM event_hosts\n           WHERE event_id = $1 AND role = 'owner'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c2a49e90eaf38184eefbc2a187b71412310558ec30104f56ff035f1c86beef22"
+}

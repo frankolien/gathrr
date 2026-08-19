@@ -458,6 +458,18 @@ Liveness properties:
 
 ---
 
+### 4.7 Host Roster Invariants
+
+`event_hosts` is the authority on who runs an event; `events.host_id` is the denormalized owner pointer kept in step with it.
+
+- **Exactly one owner.** A partial unique index on `(event_id) WHERE role = 'owner'` makes a second owner unrepresentable.
+- **Never hostless.** The owner cannot be removed through `DELETE /v1/events/{id}/hosts/{uid}` — only handed over. Removal locks the roster `FOR UPDATE` and refuses to drop the last row, so two concurrent removals cannot race an event into having nobody.
+- **Creation installs the owner.** `events::insert` writes the `event_hosts` row inside the same transaction as the event, so an event without a host cannot be committed.
+- **Handover is atomic.** Demoting the outgoing owner, promoting the successor and repointing `events.host_id` happen in one transaction under the same roster lock.
+- **Authorization reads the roster, never the pointer.** `can_manage(event, user)` is the only question asked, and it asks `event_hosts`.
+
+---
+
 ## 5. Algorithms with Complexity
 
 ### 5.1 Invite Code Generation (collision-resistant)
@@ -1151,6 +1163,9 @@ Guests who RSVP'd from the web have no device token. Their `event_cancelled` and
 | POST | `/v1/events/{id}/guests/{uid}/promote` | Waitlist promotion |
 | POST | `/v1/events/{id}/checkin` | Attendance scan (8.10) |
 | POST | `/v1/events/{id}/mute` | Per-event notification mute |
+| GET | `/v1/events/{id}/hosts` | The event's host roster, owner first |
+| POST | `/v1/events/{id}/hosts` | Promote someone to co-host; any host may recruit |
+| DELETE | `/v1/events/{id}/hosts/{uid}` | Stand down; the owner may remove any co-host, a co-host may remove only themselves |
 | POST | `/v1/reports` | Report a message or user; re-reporting the same subject updates the row rather than piling up |
 | POST | `/v1/blocks` | Block a user; returns the caller's full block list |
 | GET | `/v1/blocks` | The caller's block list |
@@ -1177,7 +1192,7 @@ Guests who RSVP'd from the web have no device token. Their `event_cancelled` and
 | Phone number exposure | Phone is never present in any guest-visible DTO — enforced by a serialization test, not by convention |
 | Malicious upload | Presign constrained by `content-type` allowlist and a `content-length-range` condition; server re-encodes to strip EXIF, including GPS |
 | Apple identity token forgery | Verify against Apple's JWKS with a cached key set, check `iss`, `aud` = bundle id, `exp`, and nonce |
-| Host impersonation on cancel | Cancel and edit require host or co-host; every lifecycle transition is audit-logged |
+| Host impersonation on cancel | Cancel and edit require host or co-host — resolved through `can_manage`, which reads `event_hosts`; no code path compares `host_id` directly |
 
 ### 13.2 Rate Limit Table
 
@@ -1198,7 +1213,7 @@ Operating in Lagos brings the app under the **Nigeria Data Protection Act 2023**
 - A lawful basis and a privacy notice presented before first data collection.
 - Data subject rights served by real endpoints: `GET /v1/me/export` and `DELETE /v1/me` (12.3), completing within 30 days.
 - Deletion semantics: user rows are hard-deleted; their messages become tombstones — `redacted_at` set, body blanked, `sender_id` nulled — preserving chat sequence integrity so everyone else's `seq` still reads straight; hosted events transfer to a co-host or are cancelled.
-- Until co-hosts exist, `DELETE /v1/me` takes the second branch: every event the account still hosts is cancelled (which cancels its reminder jobs), then removed with the account. The response reports `events_cancelled` and `messages_redacted` so the client can say what actually happened. Once co-hosts land, transfer replaces removal and this note goes away.
+- `DELETE /v1/me` takes the first branch wherever it can: every event the account owns is handed to its longest-standing co-host, who becomes the new owner. Only an event with nobody else running it is cancelled and removed with the account. The response reports `events_handed_over`, `events_cancelled` and `messages_redacted` so the client can say what actually happened.
 - Blocks are symmetric on read: a block hides the blocked person's messages from the blocker *and* the blocker's messages from them, so neither can talk past the other in a shared thread.
 - Retention: OTP rows purged at 24 hours, idempotency records at 24 hours, refresh tokens at expiry + 30 days, analytics pseudonymized at 90 days.
 - Contacts are never uploaded. Invites are shared by link, never by harvesting an address book — this also removes an entire category of consent problem.

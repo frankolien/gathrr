@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT d.id, d.user_id, d.apns_token, d.environment\n           FROM devices d\n           WHERE d.user_id IN (\n             SELECT r.user_id FROM rsvps r\n             WHERE r.event_id = $1 AND r.status IN ('going', 'maybe')\n             UNION\n             SELECT e.host_id FROM events e WHERE e.id = $1\n           )\n           AND NOT EXISTS (\n             SELECT 1 FROM event_mutes m\n             WHERE m.user_id = d.user_id AND m.event_id = $1\n           )",
+  "query": "SELECT d.id, d.user_id, d.apns_token, d.environment\n           FROM devices d\n           WHERE d.user_id IN (\n             SELECT r.user_id FROM rsvps r\n             WHERE r.event_id = $1 AND r.status IN ('going', 'maybe')\n             UNION\n             SELECT h.user_id FROM event_hosts h WHERE h.event_id = $1\n           )\n           AND NOT EXISTS (\n             SELECT 1 FROM event_mutes m\n             WHERE m.user_id = d.user_id AND m.event_id = $1\n           )",
   "describe": {
     "columns": [
       {
@@ -36,5 +36,5 @@
       false
     ]
   },
-  "hash": "f67f330fa308e8e688eb787bc83582e72df5bbd4355599eb85c883abbb4a3abe"
+  "hash": "8b8a0a3a3d290f0d4e8604b1d035cf2db93413d9d20450435a22cb653de79de5"
 }

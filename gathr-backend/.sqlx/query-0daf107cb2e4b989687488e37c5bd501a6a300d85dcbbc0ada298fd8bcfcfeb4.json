@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (\n             SELECT 1 FROM event_hosts WHERE event_id = $1 AND user_id = $2\n           ) AS \"manages!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "manages!",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "0daf107cb2e4b989687488e37c5bd501a6a300d85dcbbc0ada298fd8bcfcfeb4"
+}

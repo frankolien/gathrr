@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT e.id, e.host_id, e.title, e.category, e.description, e.location_name,\n                  e.starts_at, e.ends_at, e.timezone, e.capacity, e.max_plus_ones,\n                  e.status::text AS \"status!\",\n                  COALESCE(g.going_guests, 0) AS \"going_guests!\",\n                  COALESCE(g.preview_names, ARRAY[]::text[]) AS \"preview_guest_names!\"\n           FROM events e\n           LEFT JOIN LATERAL (\n             SELECT COUNT(*)::int AS going_guests,\n                    (ARRAY_AGG(u.display_name ORDER BY r2.updated_at))[1:4] AS preview_names\n             FROM rsvps r2\n             JOIN users u ON u.id = r2.user_id\n             WHERE r2.event_id = e.id AND r2.status = 'going'\n           ) g ON TRUE\n           WHERE e.host_id = $1 AND e.status <> 'cancelled'\n           ORDER BY e.starts_at\n           LIMIT 50",
+  "query": "SELECT e.id, e.host_id, e.title, e.category, e.description, e.location_name,\n                  e.starts_at, e.ends_at, e.timezone, e.capacity, e.max_plus_ones,\n                  e.status::text AS \"status!\",\n                  COALESCE(g.going_guests, 0) AS \"going_guests!\",\n                  COALESCE(g.preview_names, ARRAY[]::text[]) AS \"preview_guest_names!\"\n           FROM events e\n           LEFT JOIN LATERAL (\n             SELECT COUNT(*)::int AS going_guests,\n                    (ARRAY_AGG(u.display_name ORDER BY r2.updated_at))[1:4] AS preview_names\n             FROM rsvps r2\n             JOIN users u ON u.id = r2.user_id\n             WHERE r2.event_id = e.id AND r2.status = 'going'\n           ) g ON TRUE\n           WHERE e.status <> 'cancelled'\n             AND EXISTS (\n               SELECT 1 FROM event_hosts h\n               WHERE h.event_id = e.id AND h.user_id = $1\n             )\n           ORDER BY e.starts_at\n           LIMIT 50",
   "describe": {
     "columns": [
       {
@@ -96,5 +96,5 @@
       null
     ]
   },
-  "hash": "3271fbca44d1c8bb5472e9e68b1358ed4c98d372731e8ff0e067dfb93706f117"
+  "hash": "126ca7cef0665ebbef2429acc12e825b827f7ee15c40b76d455a12ca771b8603"
 }

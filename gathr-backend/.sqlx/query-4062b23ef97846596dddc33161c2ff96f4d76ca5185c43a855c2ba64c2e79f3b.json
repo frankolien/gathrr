@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO event_hosts (event_id, user_id, role, added_by)\n           VALUES ($1, $2, 'owner', $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4062b23ef97846596dddc33161c2ff96f4d76ca5185c43a855c2ba64c2e79f3b"
+}

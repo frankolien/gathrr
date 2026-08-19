@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE event_hosts SET role = 'owner', added_at = now()\n           WHERE event_id = $1 AND user_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ed6cbd411b83b72e566fbb1a627165b1d823f8fb62d9a622ac25eef0905165ce"
+}

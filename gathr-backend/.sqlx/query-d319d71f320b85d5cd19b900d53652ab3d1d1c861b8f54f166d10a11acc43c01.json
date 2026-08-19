@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO notifications (user_id, actor_id, event_id, kind)\n           SELECT audience.user_id, $2, $1, 'message_posted'\n           FROM (\n             SELECT r.user_id FROM rsvps r\n             WHERE r.event_id = $1 AND r.status <> 'declined'\n             UNION\n             SELECT h.user_id FROM event_hosts h WHERE h.event_id = $1\n           ) AS audience\n           WHERE audience.user_id <> $2\n             AND NOT EXISTS (\n               SELECT 1 FROM event_mutes m\n               WHERE m.user_id = audience.user_id AND m.event_id = $1\n             )\n           ON CONFLICT (user_id, event_id)\n           WHERE read_at IS NULL AND kind = 'message_posted'\n           DO UPDATE SET actor_id = EXCLUDED.actor_id, created_at = now()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d319d71f320b85d5cd19b900d53652ab3d1d1c861b8f54f166d10a11acc43c01"
+}

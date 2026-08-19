@@ -627,6 +627,93 @@
             },
             "description": ""
           }
+        },
+        {
+          "name": "Host roster",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/events/{{eventId}}/hosts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "events",
+                "{{eventId}}",
+                "hosts"
+              ]
+            },
+            "description": "Owner first, then co-hosts by the order they were added."
+          },
+          "response": []
+        },
+        {
+          "name": "Add a co-host",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/events/{{eventId}}/hosts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "events",
+                "{{eventId}}",
+                "hosts"
+              ]
+            },
+            "description": "Any host may recruit another. Adding the same person twice is a no-op.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{guestId}}\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Stand down as host",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/events/{{eventId}}/hosts/{{guestId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "events",
+                "{{eventId}}",
+                "hosts",
+                "{{guestId}}"
+              ]
+            },
+            "description": "The owner may remove any co-host; a co-host may remove only themselves. The owner cannot be removed."
+          },
+          "response": []
         }
       ]
     },

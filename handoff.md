@@ -373,3 +373,88 @@ protocol ChatService: Sendable {
 
 ---
 
+## 4. Formal Methods: Core Invariants
+
+Notation: predicate/TLA+-style. `count(...)` counts rows.
+
+### 4.1 RSVP Status State Machine
+
+States: invited, going, maybe, declined, waitlisted.
+
+```
+guest_selectable = { going, maybe, declined }
+
+  any state -> any guest_selectable    [guard: CAP, and only when target = going]
+  going     -> waitlisted              [system only, when CAP fails and the guest opted in]
+  *         -> invited                 [forbidden; invited is an initial state only]
+  *         -> waitlisted              [forbidden as a guest choice]
+```
+
+The original enumeration omitted `declined -> maybe`, which contradicts Section 1.3 ("a guest can RSVP Going, Maybe, or Can't Go") and Section 8.5, where the sheet offers all three unconditionally — a guest who tapped Can't Go and reopened the sheet would have hit an error. The three guest-selectable statuses are freely interchangeable; only `invited` (initial) and `waitlisted` (system-assigned on a failed CAP with opt-in) are not directly choosable. Encoded in `gathr-domain::rsvp::submit`.
+
+Waitlisting is opt-in, never automatic: a failed CAP returns `capacity_exceeded` so the client can offer the waitlist explicitly (8.5, 10.3). Re-confirming an existing waitlist place does not reset `waitlisted_at`, so a guest cannot lose their queue position by tapping twice.
+
+Guard CAP (canonical, single definition — every transition into `going` uses exactly this):
+
+```
+seats_held(E, U)  = count(r in rsvps: r.event=E and r.status='going' and r.user != U)
+                  + sum(r.plus_ones for those rows)
+seats_needed(U)   = 1 + requested_plus_ones
+CAP(E, U)         = capacity(E) IS NULL OR seats_held(E, U) + seats_needed(U) <= capacity(E)
+```
+
+The actor's own existing row is excluded from `seats_held` so that a guest already `going` who edits their plus-one count is not double-counted. A `going` RSVP consumes `1 + plus_ones` seats, never one seat.
+
+Waitlist fairness orders by `waitlisted_at` (set once on entry to `waitlisted`, never touched again), not `updated_at` — `updated_at` moves on any edit and would silently reshuffle the queue. See migration 0004 in Section 21.
+
+### 4.2 Event Lifecycle State Machine
+
+```
+draft -> published        [guard: has title, starts_at, host]
+published -> ongoing       [auto: now >= starts_at]
+ongoing -> ended           [auto: now >= ends_at]
+published -> cancelled
+ongoing -> cancelled
+draft -> cancelled
+(ended and cancelled are terminal)
+```
+
+### 4.3 Invite Code Semantics
+
+- Uniqueness: `forall i1,i2 in invites: i1.code = i2.code => i1.id = i2.id` (enforced by UNIQUE index).
+- Expiry: an invite is redeemable iff `expires_at IS NULL OR now() < expires_at`.
+- Single vs multi use: redeemable iff `max_uses IS NULL OR uses < max_uses`. Single-use sets max_uses=1.
+
+### 4.4 Chat Ordering and Delivery
+
+- Monotonic sequence: `forall m in messages(E): unique(m.seq)` and seq assigned strictly increasing per event.
+- Ordering guarantee: messages are totally ordered per event by seq (not by wall-clock created_at).
+- Delivery: at-least-once over WebSocket; client dedupes by (event_id, seq). Persist-before-broadcast ensures no acknowledged message is lost.
+
+### 4.5 Safety and Liveness
+
+Safety invariants:
+- CAP: `count(going rsvps incl plus_ones) <= capacity` for every event with non-null capacity.
+- INV: `forall r in rsvps: exists valid invite OR event is public` (no RSVP without a valid path).
+- SEQ: message sequence numbers are unique and monotonic per event.
+
+Liveness properties:
+- A waitlisted guest eventually transitions to going if capacity frees and they are next (fairness by updated_at order).
+- A due reminder job is eventually delivered (worker claims and completes).
+
+### 4.6 Mapping to Database and Transactional Code
+
+- CAP: enforce inside a transaction using `SELECT ... FOR UPDATE` on the event row (or a counter row) before inserting/updating a going RSVP; reject if guard fails. Prevents the classic capacity race.
+- Uniqueness of RSVP: `UNIQUE (event_id, user_id)` with upsert via `ON CONFLICT`.
+- SEQ: allocate seq inside the same transaction that inserts the message, via an upsert so the first message of an event cannot silently no-op on a missing counter row:
+  ```sql
+  INSERT INTO event_counters (event_id, last_seq) VALUES ($1, 1)
+  ON CONFLICT (event_id) DO UPDATE SET last_seq = event_counters.last_seq + 1
+  RETURNING last_seq;
+  ```
+  `UNIQUE (event_id, seq)` is the backstop. A plain `UPDATE ... RETURNING` returns zero rows when no counter exists and must not be used.
+- Invite codes: `UNIQUE(code)`; redemption increments `uses` under row lock with the expiry/max_uses guard.
+- Reminders: `FOR UPDATE SKIP LOCKED` guarantees each job is claimed by exactly one worker.
+
+---
+

@@ -362,3 +362,79 @@ impl From<RsvpView> for RsvpResponse {
     }
 }
 
+#[derive(Debug, Serialize)]
+pub struct GuestResponse {
+    pub user_id: Uuid,
+    pub display_name: String,
+    pub status: RsvpStatus,
+    pub plus_ones: i32,
+}
+
+impl From<GuestRecord> for GuestResponse {
+    fn from(record: GuestRecord) -> Self {
+        Self {
+            user_id: record.user_id,
+            display_name: record.display_name,
+            status: record.status,
+            plus_ones: record.plus_ones,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct GuestListResponse {
+    pub going: i32,
+    pub seats_taken: i32,
+    pub guests: Vec<GuestResponse>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NotificationFeedQuery {
+    #[serde(default, with = "time::serde::rfc3339::option")]
+    pub before: Option<OffsetDateTime>,
+    #[serde(default)]
+    pub limit: Option<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MarkReadRequest {
+    #[serde(default)]
+    pub ids: Vec<Uuid>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct NotificationResponse {
+    pub id: Uuid,
+    pub kind: String,
+    pub event_id: Uuid,
+    pub event_title: String,
+    pub actor_display_name: Option<String>,
+    pub read: bool,
+    #[serde(with = "time::serde::rfc3339")]
+    pub created_at: OffsetDateTime,
+}
+
+impl From<NotificationRecord> for NotificationResponse {
+    fn from(record: NotificationRecord) -> Self {
+        Self {
+            id: record.id,
+            kind: record.kind,
+            event_id: record.event_id,
+            event_title: record.event_title,
+            actor_display_name: record.actor_display_name,
+            read: record.read_at.is_some(),
+            created_at: record.created_at,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct NotificationFeedResponse {
+    pub unread: i64,
+    pub notifications: Vec<NotificationResponse>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct UnreadCountResponse {
+    pub unread: i64,
+}

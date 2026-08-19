@@ -67,3 +67,80 @@ pub async fn me(state: web::Data<AppState>, user: AuthUser) -> Result<HttpRespon
     }))
 }
 
+fn provider_for(name: &str) -> Result<Provider, ApiError> {
+    match name {
+        "apple" => Ok(Provider::Apple),
+        "google" => Ok(Provider::Google),
+        _ => Err(ApiError(AppError::Validation(format!(
+            "{name} is not a supported sign-in provider"
+        )))),
+    }
+}
+
+pub async fn sign_in_with_provider(
+    state: web::Data<AppState>,
+    body: web::Json<OAuthSignInRequest>,
+) -> Result<HttpResponse, ApiError> {
+    let provider = provider_for(&body.provider)?;
+    let (keys, audiences) = match provider {
+        Provider::Apple => (&state.apple_keys, &state.config.apple_audiences),
+        Provider::Google => (&state.google_keys, &state.config.google_audiences),
+    };
+
+    if audiences.is_empty() {
+        return Err(ApiError(AppError::ProviderUnavailable));
+    }
+
+    let key_set = keys
+        .current()
+        .await
+        .map_err(|_| ApiError(AppError::ProviderUnavailable))?;
+
+    let identity = oidc::verify(
+        &body.id_token,
+        &key_set,
+        provider,
+        audiences,
+        body.nonce.as_deref(),
+    )
+    .map_err(|error| ApiError(AppError::IdentityRejected(error.to_string())))?;
+
+    let (user_id, pair) = auth::sign_in_with_identity(
+        &state.db,
+        &state.tokens,
+        auth::IdentitySignIn {
+            provider: &body.provider,
+            subject: &identity.subject,
+            email: identity.email.as_deref(),
+            display_name: body.display_name.as_deref().or(identity.name.as_deref()),
+        },
+    )
+    .await?;
+
+    Ok(HttpResponse::Ok().json(TokenResponse {
+        user_id,
+        access_token: pair.access_token,
+        refresh_token: pair.refresh_token,
+        expires_in_seconds: pair.expires_in_seconds,
+    }))
+}
+
+pub async fn update_profile(
+    state: web::Data<AppState>,
+    user: AuthUser,
+    body: web::Json<UpdateProfileRequest>,
+) -> Result<HttpResponse, ApiError> {
+    auth::update_profile(
+        &state.db,
+        user.0,
+        auth::ProfileUpdate {
+            display_name: body.display_name.as_deref(),
+            bio: body.bio.as_ref().map(|bio| bio.as_deref()),
+            avatar_media_id: body.avatar_media_id,
+        },
+    )
+    .await?;
+
+    me(state, user).await
+}
+

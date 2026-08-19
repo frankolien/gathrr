@@ -32,6 +32,7 @@ public final class SignInModel {
 
     let googleClientID: String?
     private(set) var appleNonce = SignInNonce.random()
+    private let appleRequester = AppleSignInRequester()
 
     private let auth: any AuthService
     private let submit: (SignInOutcome) async -> Void
@@ -113,6 +114,10 @@ public final class SignInModel {
         case .failure(let error):
             fail(with: error)
         }
+    }
+
+    func continueWithApple() async {
+        await completeApple(await appleRequester.request(hashedNonce: hashedAppleNonce))
     }
 
     func continueWithGoogle() async {

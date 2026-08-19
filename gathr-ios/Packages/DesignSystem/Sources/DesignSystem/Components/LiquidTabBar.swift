@@ -19,7 +19,8 @@ public struct LiquidTabBar: View {
     @Binding private var selection: String
     private let action: () -> Void
 
-    @Namespace private var lens
+    @Namespace private var slot
+    @Namespace private var glass
 
     public init(items: [TabItem], selection: Binding<String>, action: @escaping () -> Void) {
         self.items = items
@@ -29,9 +30,7 @@ public struct LiquidTabBar: View {
 
     public var body: some View {
         if #available(iOS 26.0, *) {
-            GlassEffectContainer(spacing: Spacing.stackGap) {
-                bar
-            }
+            GlassEffectContainer(spacing: Spacing.gutter) { bar }
         } else {
             bar
         }
@@ -49,7 +48,7 @@ public struct LiquidTabBar: View {
         HStack(spacing: 0) {
             ForEach(items) { item in
                 Button {
-                    withAnimation(.smooth(duration: 0.42, extraBounce: 0.18)) {
+                    withAnimation(.bouncy(duration: 0.5, extraBounce: 0.25)) {
                         selection = item.id
                     }
                 } label: {
@@ -60,8 +59,8 @@ public struct LiquidTabBar: View {
                 .accessibilityAddTraits(selection == item.id ? [.isSelected] : [])
             }
         }
-        .padding(Spacing.unit)
         .frame(maxWidth: .infinity)
+        .background { lens }
         .modifier(BarSurface())
     }
 
@@ -71,22 +70,23 @@ public struct LiquidTabBar: View {
             .font(.system(size: 18, weight: chosen ? .semibold : .regular))
             .foregroundStyle(chosen ? Palette.accent : Palette.textTertiary)
             .frame(maxWidth: .infinity)
-            .frame(height: Spacing.tabBarHeight - Spacing.unit * 2)
+            .frame(height: Spacing.tabBarHeight)
             .contentShape(Rectangle())
-            .background { if chosen { lensShape } }
+            .matchedGeometryEffect(id: item.id, in: slot, isSource: true)
     }
 
     @ViewBuilder
-    private var lensShape: some View {
+    private var lens: some View {
         if #available(iOS 26.0, *) {
             Capsule()
                 .fill(.clear)
                 .glassEffect(.regular.interactive(), in: .capsule)
-                .glassEffectID("lens", in: lens)
+                .glassEffectID("lens", in: glass)
+                .matchedGeometryEffect(id: selection, in: slot, isSource: false)
         } else {
             Capsule()
-                .fill(Palette.accent.opacity(0.12))
-                .matchedGeometryEffect(id: "lens", in: lens)
+                .fill(Palette.accent.opacity(0.14))
+                .matchedGeometryEffect(id: selection, in: slot, isSource: false)
         }
     }
 

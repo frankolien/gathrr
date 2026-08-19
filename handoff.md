@@ -546,3 +546,6 @@ Wrapped in a transaction that first locks the event row and checks the capacity 
 - Rust: snake_case fns, CamelCase types, verbs for functions (create_event), nouns for types.
 - Swift: lowerCamelCase, descriptive names, no abbreviations.
 
+## Commits
+- Conventional Commits: feat:, fix:, refactor:, test:, chore:, docs:. Imperative mood. One logical change per commit.
+

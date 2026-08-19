@@ -1388,6 +1388,173 @@
           }
         }
       ]
+    },
+    {
+      "name": "Privacy",
+      "item": [
+        {
+          "name": "Report a message or user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "reports"
+              ]
+            },
+            "description": "Subjects: message, user. Reasons: spam, harassment, hate_speech, nudity, violence, impersonation, other. Reporting the same subject twice updates the row.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subject\": \"message\",\n  \"subject_id\": \"{{messageId}}\",\n  \"reason\": \"spam\",\n  \"detail\": \"unsolicited advertising in the event thread\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Block a user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/blocks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "blocks"
+              ]
+            },
+            "description": "Symmetric on read: neither side sees the other's messages in a shared thread.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{guestId}}\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "My block list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/blocks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "blocks"
+              ]
+            },
+            "description": "Everyone the caller has blocked."
+          },
+          "response": []
+        },
+        {
+          "name": "Unblock",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/blocks/{{guestId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "blocks",
+                "{{guestId}}"
+              ]
+            },
+            "description": "404 if there was no block to remove."
+          },
+          "response": []
+        },
+        {
+          "name": "Export my data",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/me/export",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "me",
+                "export"
+              ]
+            },
+            "description": "NDPA/GDPR data subject access. Served as a gathr-export.json attachment."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete my account",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "me"
+              ]
+            },
+            "description": "Hard-deletes the user. Hosted events are cancelled then removed; messages elsewhere become tombstones."
+          },
+          "response": []
+        }
+      ]
     }
   ]
 }

@@ -28,3 +28,19 @@ const AUTHENTICATION: Quota = Quota {
     allowance: 30,
     window: Duration::from_secs(60),
 };
+const INVITE_LOOKUP: Quota = Quota {
+    bucket: "invite_lookup",
+    allowance: 20,
+    window: Duration::from_secs(60),
+};
+const WRITE: Quota = Quota {
+    bucket: "write",
+    allowance: 60,
+    window: Duration::from_secs(60),
+};
+const BASELINE: Quota = Quota {
+    bucket: "baseline",
+    allowance: 300,
+    window: Duration::from_secs(60),
+};
+

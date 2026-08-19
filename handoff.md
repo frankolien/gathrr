@@ -1200,3 +1200,40 @@ Operating in Lagos brings the app under the **Nigeria Data Protection Act 2023**
 
 ---
 
+## 14. Lagos Engineering Constraints
+
+### 14.1 Payload Budgets
+
+Data is expensive and 3G fallback is routine. Enforced in CI by an asset-size test:
+
+| Asset | Budget | Format |
+|---|---|---|
+| Avatar | 8KB | WebP 96×96 |
+| List thumbnail | 12KB | WebP 176×176 |
+| Card cover | 60KB | WebP 800×600 |
+| Detail cover | 200KB | WebP 1200×900 |
+| OG image | 150KB | JPEG 1200×630 |
+| Home feed JSON (20 events) | 40KB | gzip |
+
+Upload HEIC from the device and transform server-side; never upload a 4MB HEIC to render a 176px thumbnail. Serve `Cache-Control: public, max-age=31536000, immutable` on content-addressed variants.
+
+### 14.2 SMS Delivery in Nigeria
+
+Twilio is the reflexive choice and the wrong one here. Nigerian networks (MTN, Airtel, Glo, 9mobile) enforce **DND (Do Not Disturb)** filtering that blocks promotional traffic outright, and a large share of subscribers have DND active. OTP and transactional messages must go over a registered transactional/OTP route with an approved sender ID, or delivery silently fails for a substantial fraction of users. Use a local aggregator — **Termii** or **Africa's Talking** — which handle DND-exempt OTP routing and NCC sender-ID registration natively, and keep a secondary provider configured for failover. Instrument delivery rate per provider per network and alert below 90%.
+
+Fall back to WhatsApp OTP or Sign in with Apple whenever SMS fails twice; do not trap the user in a retry loop.
+
+### 14.3 Hosting Region
+
+Deploy the primary Fly.io machine in **`jnb` (Johannesburg)** — the nearest region to Lagos — with Postgres colocated. A European region adds roughly 150ms RTT per round trip, which the 200ms p95 budget (1.4) cannot absorb once TLS and query time are counted. R2 is globally distributed so images are unaffected. Keep a `cdg` replica only if measurements justify it.
+
+### 14.4 Device and OS Floor
+
+iOS 17.0 (Decision D4, Section 17). This retains `@Observable`, `NavigationStack`, and Swift 6 language mode while keeping the iPhone X/8 generation addressable — a meaningful share of the Lagos secondhand market. Guard iOS 18-only APIs with `@available` rather than raising the floor.
+
+### 14.5 Share Channels
+
+WhatsApp is the dominant social channel in Nigeria by a wide margin, so it gets first-class treatment rather than living behind the generic system share sheet: a dedicated row in S7 opening `https://wa.me/?text={encoded}` with prefilled copy ("You're invited to Amara's 26th Birthday · Sat, Aug 8 · 7:00 PM → {link}"). The OG image quality (9.5) matters most in exactly this context. Instrument `invite_shared` with a `channel` property to confirm the assumption rather than assuming it forever.
+
+---
+

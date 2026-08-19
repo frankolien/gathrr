@@ -94,3 +94,64 @@ async fn a_message_posted_over_http_arrives_on_an_open_socket() {
     let _ = socket.send(ws::Message::Close(None)).await;
 }
 
+#[actix_web::test]
+async fn a_stranger_cannot_open_the_stream() {
+    let state = shared_state().await;
+    let server = {
+        let state = state.clone();
+        actix_test::start(move || {
+            App::new()
+                .app_data(state.clone())
+                .configure(routes::configure)
+        })
+    };
+
+    let client = awc::Client::new();
+    let mut host = client
+        .post(server.url("/v1/auth/dev"))
+        .send_json(&json!({ "display_name": "Amara Chukwu" }))
+        .await
+        .unwrap();
+    let host_token = host.json::<Value>().await.unwrap()["access_token"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+
+    let mut stranger = client
+        .post(server.url("/v1/auth/dev"))
+        .send_json(&json!({ "display_name": "Passing Stranger" }))
+        .await
+        .unwrap();
+    let stranger_token = stranger.json::<Value>().await.unwrap()["access_token"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+
+    let mut created = client
+        .post(server.url("/v1/events"))
+        .insert_header(("authorization", format!("Bearer {host_token}")))
+        .insert_header(("idempotency-key", Uuid::new_v4().to_string()))
+        .send_json(&json!({
+            "title": "Group Therapy",
+            "category": "meetup",
+            "starts_at": "2027-09-08T18:00:00Z",
+            "publish_now": true
+        }))
+        .await
+        .unwrap();
+    let event_id = created.json::<Value>().await.unwrap()["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+
+    let attempt = awc::Client::new()
+        .ws(server.url(&format!("/v1/events/{event_id}/stream")))
+        .header("authorization", format!("Bearer {stranger_token}"))
+        .connect()
+        .await;
+
+    assert!(
+        attempt.is_err(),
+        "the stream must not open for an uninvited reader"
+    );
+}

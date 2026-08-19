@@ -239,3 +239,40 @@ async fn an_event_starting_within_the_hour_does_not_queue_a_reminder_for_yesterd
     );
 }
 
+#[actix_web::test]
+async fn muting_and_unmuting_an_event_round_trips() {
+    let state = state().await;
+    let app = service!(state);
+    let token = sign_in!(app, "Amara Chukwu");
+
+    let created = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/v1/events")
+            .insert_header(("authorization", format!("Bearer {token}")))
+            .insert_header(("idempotency-key", Uuid::new_v4().to_string()))
+            .set_json(json!({
+                "title": "Group Therapy",
+                "category": "meetup",
+                "starts_at": "2027-09-08T18:00:00Z",
+                "publish_now": true
+            }))
+            .to_request(),
+    )
+    .await;
+    let event_id = body_json(created).await["id"].as_str().unwrap().to_owned();
+
+    for muted in [true, false] {
+        let response = test::call_service(
+            &app,
+            test::TestRequest::post()
+                .uri(&format!("/v1/events/{event_id}/mute"))
+                .insert_header(("authorization", format!("Bearer {token}")))
+                .set_json(json!({ "muted": muted }))
+                .to_request(),
+        )
+        .await;
+        assert_eq!(response.status(), 200);
+        assert_eq!(body_json(response).await["muted"], muted);
+    }
+}

@@ -1237,3 +1237,21 @@ WhatsApp is the dominant social channel in Nigeria by a wide margin, so it gets 
 
 ---
 
+## 15. Accessibility and Localization
+
+### 15.1 Accessibility
+
+- Dynamic Type through AX3 on every text token. `EventHeroCard` reflows to a vertical layout above XXL rather than truncating; list rows grow, they do not clip.
+- Contrast: `textSecondary` on `canvas` is 4.6:1 and passes. Text over photos passes **only** with the scrim (7.1) — a snapshot test renders every card over a white test image and asserts the measured ratio.
+- VoiceOver: `AvatarCluster` is one element labeled "18 people going", not six unlabeled images. `CountdownSegments` is one element labeled "Event starts in 9 days, 14 hours, 32 minutes", not three. The "…" overflow is labeled "More options". Card grouping means one swipe per event, not six.
+- The countdown updates use `.accessibilityRespondsToUserInteraction` semantics and do not fire live-region announcements every minute.
+- Reduce Motion disables carousel parallax and press scaling (7.6).
+- Every icon-only control has an accessibility label; enforce with a lint rule.
+- Minimum 44×44 targets, verified in the snapshot suite.
+
+### 15.2 Localization
+
+Ship `en-NG` first with all strings in a catalog from day one — retrofitting hardcoded strings across six feature packages is the expensive path. Format dates with `Date.FormatStyle` in the event's timezone, never with a hand-built format string; the mockups themselves disagree ("Mon, 5 aug, 9:00 PM" vs "Sat, Aug 8 · 7:00 PM"), and the canonical style is **`Sat, Aug 8 · 7:00 PM`**. Currency (V2 ticketing) is ₦ via `Decimal` and `FormatStyle.currency(code: "NGN")` — never a `Double`. Support RTL layout via leading/trailing constraints even before an RTL locale ships.
+
+---
+

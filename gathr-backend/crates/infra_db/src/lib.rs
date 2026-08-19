@@ -1,3 +1,4 @@
+pub mod account;
 pub mod devices;
 pub mod error;
 pub mod events;
@@ -6,6 +7,7 @@ pub mod identities;
 pub mod invites;
 pub mod media;
 pub mod messages;
+pub mod moderation;
 pub mod notifications;
 pub mod otp;
 pub mod pool;

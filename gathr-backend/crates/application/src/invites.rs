@@ -24,12 +24,7 @@ pub async fn create(
     max_uses: Option<i32>,
     expires_at: Option<OffsetDateTime>,
 ) -> Result<InviteRecord, AppError> {
-    let event = events::find(db, event_id)
-        .await?
-        .ok_or(AppError::NotFound)?;
-    if event.host_id != actor_id {
-        return Err(AppError::Forbidden);
-    }
+    crate::events::load_manageable(db, event_id, actor_id).await?;
     if max_uses.is_some_and(|uses| uses <= 0) {
         return Err(AppError::Validation(
             "max_uses must be a positive number".to_owned(),
@@ -76,12 +71,7 @@ pub async fn resolve(db: &Db, raw_code: &str) -> Result<PublicInvite, AppError> 
 }
 
 pub async fn list(db: &Db, event_id: Uuid, actor_id: Uuid) -> Result<Vec<InviteRecord>, AppError> {
-    let event = events::find(db, event_id)
-        .await?
-        .ok_or(AppError::NotFound)?;
-    if event.host_id != actor_id {
-        return Err(AppError::Forbidden);
-    }
+    crate::events::load_manageable(db, event_id, actor_id).await?;
     Ok(invites::list_for_event(db, event_id).await?)
 }
 

@@ -1,6 +1,6 @@
 use gathr_domain::{event, Category, EventSchedule, EventStatus};
 use gathr_infra_db::events::{self, EventEdit, NewEvent};
-use gathr_infra_db::{rsvps, users, Db, DbError, EventRecord, EventSummaryRecord};
+use gathr_infra_db::{hosts, rsvps, users, Db, DbError, EventRecord, EventSummaryRecord};
 use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
@@ -144,17 +144,21 @@ pub async fn feed(
 }
 
 pub async fn can_manage(db: &Db, event_id: Uuid, actor_id: Uuid) -> Result<bool, AppError> {
-    let event = events::find(db, event_id)
+    events::find(db, event_id)
         .await?
         .ok_or(AppError::NotFound)?;
-    Ok(event.host_id == actor_id)
+    Ok(hosts::manages(db, event_id, actor_id).await?)
 }
 
-async fn load_manageable(db: &Db, event_id: Uuid, actor_id: Uuid) -> Result<EventRecord, AppError> {
+pub async fn load_manageable(
+    db: &Db,
+    event_id: Uuid,
+    actor_id: Uuid,
+) -> Result<EventRecord, AppError> {
     let record = events::find(db, event_id)
         .await?
         .ok_or(AppError::NotFound)?;
-    if record.host_id != actor_id {
+    if !hosts::manages(db, event_id, actor_id).await? {
         return Err(AppError::Forbidden);
     }
     Ok(record)
@@ -252,10 +256,10 @@ pub async fn remove_guest(
     actor_id: Uuid,
     guest_id: Uuid,
 ) -> Result<(), AppError> {
-    let event = load_manageable(db, event_id, actor_id).await?;
-    if event.host_id == guest_id {
+    load_manageable(db, event_id, actor_id).await?;
+    if hosts::manages(db, event_id, guest_id).await? {
         return Err(AppError::Validation(
-            "a host cannot be removed from their own event".to_owned(),
+            "a host cannot be removed from an event they run".to_owned(),
         ));
     }
 

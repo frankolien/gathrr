@@ -1,5 +1,5 @@
 use gathr_domain::{event, rsvp, CapacityContext, RsvpRequest, RsvpStatus};
-use gathr_infra_db::{events, invites, rsvps, tokens, users, Db, DbError, GuestRecord, Tx};
+use gathr_infra_db::{events, hosts, invites, rsvps, tokens, users, Db, DbError, GuestRecord, Tx};
 use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
@@ -129,14 +129,15 @@ pub async fn promote(
     actor_id: Uuid,
     guest_id: Uuid,
 ) -> Result<RsvpView, AppError> {
+    if !crate::events::can_manage(db, event_id, actor_id).await? {
+        return Err(AppError::Forbidden);
+    }
+
     let mut tx = db.begin().await.map_err(DbError::from_sqlx)?;
 
     let event = events::lock(&mut tx, event_id)
         .await?
         .ok_or(AppError::NotFound)?;
-    if event.host_id != actor_id {
-        return Err(AppError::Forbidden);
-    }
 
     let current = rsvps::find_in_tx(&mut tx, event_id, guest_id)
         .await?
@@ -180,11 +181,11 @@ pub async fn guest_list(
     event_id: Uuid,
     actor_id: Uuid,
 ) -> Result<Vec<GuestRecord>, AppError> {
-    let event = events::find(db, event_id)
+    events::find(db, event_id)
         .await?
         .ok_or(AppError::NotFound)?;
-    let is_member =
-        event.host_id == actor_id || rsvps::find(db, event_id, actor_id).await?.is_some();
+    let is_member = hosts::manages(db, event_id, actor_id).await?
+        || rsvps::find(db, event_id, actor_id).await?.is_some();
     if !is_member {
         return Err(AppError::Forbidden);
     }

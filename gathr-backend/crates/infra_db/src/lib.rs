@@ -6,3 +6,7 @@ pub mod identities;
 pub mod invites;
 pub mod media;
 pub mod messages;
+pub mod notifications;
+pub mod otp;
+pub mod pool;
+pub mod records;

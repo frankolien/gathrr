@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE messages SET sender_id = $2 WHERE sender_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b1a01ff67ff01051d0058be2ff7c0cf12fffd0eb1465c9555f7ee2daf3cdc6f9"
+}

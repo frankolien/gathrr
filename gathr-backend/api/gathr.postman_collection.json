@@ -421,6 +421,39 @@
             },
             "description": "Revokes every refresh token this account holds, on every device."
           }
+        },
+        {
+          "name": "Claim a web guest's history",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guest_token\": \"{{guestToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/auth/claim",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "claim"
+              ]
+            },
+            "description": "Bearer is the account keeping the history; the body carries the gathr_guest session token from the web RSVP. Single use \u2014 the shadow user is deleted on success."
+          },
+          "response": []
         }
       ]
     },

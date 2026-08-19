@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM rsvps drop\n           WHERE drop.user_id = $1\n             AND EXISTS (\n               SELECT 1 FROM rsvps keep\n               WHERE keep.user_id = $2 AND keep.event_id = drop.event_id\n             )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "941b58a7abd31e16692f05ad88d279d78a18c84a14220c453bce16beda148fce"
+}

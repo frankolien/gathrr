@@ -941,7 +941,13 @@ Guest sessions are a signed, httpOnly, 90-day cookie backed by `guest_sessions`,
 
 ### 9.3 Claim and Merge
 
-When a guest later signs up with the same phone, their history must follow them. On successful OTP verification for phone `P`:
+When a guest later signs up, their history must follow them. The spec below was written for phone sign-in; with phone cut (14.2, D-sms) there is no shared identifier to match on, so **possession of the guest session token is the proof instead**. The web RSVP already hands that token back in the `gathr_guest` cookie; the app presents it to `POST /v1/auth/claim` alongside its own bearer token, and the server merges the shadow user into the account.
+
+Guarding the merge: the caller must be a real account (a guest cannot absorb another guest, 403), the session must be live (404 `guest_session_invalid` otherwise), and the token is single-use because the shadow row — and with it the session — is deleted inside the transaction. Claiming your own session is a no-op rather than an error.
+
+Where both sides answered the same event, the RSVP with the greater `updated_at` wins, so the answer given later is the one that survives. The advisory lock is taken on the shadow id, then the session is re-read inside the lock, so two concurrent claims cannot both merge.
+
+The original phone-matching design, kept for when SMS returns:
 
 ```
 BEGIN
@@ -1113,6 +1119,7 @@ Guests who RSVP'd from the web have no device token. Their `event_cancelled` and
 | `forbidden` | 403 | Show "Only the host can do this" |
 | `not_found` | 404 | Generic not-found; never distinguishes "deleted" from "never existed" |
 | `invite_invalid` | 404 | "This invite link isn't valid" |
+| `guest_session_invalid` | 404 | That guest link was already claimed or has expired — stop retrying, the history is gone or already merged |
 | `invite_expired` | 410 | "This invite has expired — ask the host for a new one" |
 | `invite_exhausted` | 409 | "This invite has been used up" |
 | `capacity_exceeded` | 409 | Offer the waitlist inline (8.5) |
@@ -1142,7 +1149,7 @@ Guests who RSVP'd from the web have no device token. Their `event_cancelled` and
 | POST | `/v1/auth/otp/request` | Issue a 6-digit code to a phone or email (8.12) |
 | POST | `/v1/auth/otp/verify` | Redeem a code and issue a token pair (8.12) |
 | PATCH | `/v1/me` | Change the display name guests see (S11) |
-| POST | `/v1/auth/claim` | Merge guest history (9.3) |
+| POST | `/v1/auth/claim` | Merge guest history (9.3); body carries the guest session token, bearer is the account keeping the history |
 | GET | `/v1/invites/{code}/public` | Unauthenticated event projection |
 | POST | `/i/{code}/rsvp` | Web guest RSVP |
 | PATCH | `/v1/events/{id}` | Edit an event; omit a field to keep it, send null to clear it |

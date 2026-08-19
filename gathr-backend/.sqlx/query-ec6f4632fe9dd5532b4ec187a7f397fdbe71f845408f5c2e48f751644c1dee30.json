@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE rsvps keep\n           SET status = drop.status, plus_ones = drop.plus_ones, updated_at = drop.updated_at\n           FROM rsvps drop\n           WHERE keep.user_id = $2 AND drop.user_id = $1\n             AND keep.event_id = drop.event_id\n             AND drop.updated_at > keep.updated_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ec6f4632fe9dd5532b4ec187a7f397fdbe71f845408f5c2e48f751644c1dee30"
+}

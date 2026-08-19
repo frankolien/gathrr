@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM notifications drop\n           WHERE drop.user_id = $1\n             AND drop.kind = 'message_posted'\n             AND drop.read_at IS NULL\n             AND EXISTS (\n               SELECT 1 FROM notifications keep\n               WHERE keep.user_id = $2 AND keep.event_id = drop.event_id\n                 AND keep.kind = 'message_posted' AND keep.read_at IS NULL\n             )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "44d7845e386c896ab3893465c354e84cd2d17704488c86f669a182cd890a0091"
+}

@@ -144,3 +144,52 @@ pub async fn update_profile(
     me(state, user).await
 }
 
+pub async fn request_code(
+    state: web::Data<AppState>,
+    body: web::Json<OtpRequest>,
+) -> Result<HttpResponse, ApiError> {
+    let channel = otp::Channel::parse(&body.channel)?;
+    let challenge = otp::request(
+        &state.db,
+        channel,
+        &body.destination,
+        otp::Delivery {
+            email: state.email.as_ref(),
+            reveal_instead_of_sending: state.config.allow_dev_auth,
+        },
+    )
+    .await?;
+
+    Ok(HttpResponse::Accepted().json(OtpChallengeResponse {
+        destination: challenge.destination,
+        expires_in_seconds: challenge.expires_in_seconds,
+        development_code: challenge.code_for_development,
+    }))
+}
+
+pub async fn verify_code(
+    state: web::Data<AppState>,
+    body: web::Json<OtpVerifyRequest>,
+) -> Result<HttpResponse, ApiError> {
+    let channel = otp::Channel::parse(&body.channel)?;
+    let (user_id, pair) = otp::verify(
+        &state.db,
+        &state.tokens,
+        channel,
+        &body.destination,
+        &body.code,
+    )
+    .await?;
+
+    Ok(HttpResponse::Ok().json(TokenResponse {
+        user_id,
+        access_token: pair.access_token,
+        refresh_token: pair.refresh_token,
+        expires_in_seconds: pair.expires_in_seconds,
+    }))
+}
+
+pub async fn logout(state: web::Data<AppState>, user: AuthUser) -> Result<HttpResponse, ApiError> {
+    auth::revoke_all_sessions(&state.db, user.0).await?;
+    Ok(HttpResponse::NoContent().finish())
+}

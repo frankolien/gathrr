@@ -232,3 +232,41 @@ public struct Account: Codable, Sendable, Identifiable, Hashable {
     }
 }
 
+public struct ProfileEdit: Sendable, Hashable {
+    public let displayName: String?
+    public let bio: String?
+    public let avatarMediaID: UUID?
+
+    public init(displayName: String? = nil, bio: String? = nil, avatarMediaID: UUID? = nil) {
+        self.displayName = displayName
+        self.bio = bio
+        self.avatarMediaID = avatarMediaID
+    }
+}
+
+public struct UploadTicket: Codable, Sendable, Hashable {
+    public let uploadURL: URL
+    public let apiKey: String
+    public let folder: String
+    public let timestamp: Int
+    public let signature: String
+}
+
+public struct StoredMedia: Codable, Sendable, Hashable {
+    public let id: UUID
+}
+
+public struct TokenPair: Codable, Sendable, Hashable {
+    public let userId: UUID
+    public let accessToken: String
+    public let refreshToken: String
+    public let expiresInSeconds: Int
+
+    public init(userId: UUID, accessToken: String, refreshToken: String, expiresInSeconds: Int) {
+        self.userId = userId
+        self.accessToken = accessToken
+        self.refreshToken = refreshToken
+        self.expiresInSeconds = expiresInSeconds
+    }
+}
+

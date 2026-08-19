@@ -243,3 +243,115 @@ pub async fn feed_this_week(
     collect_summaries(rows)
 }
 
+pub async fn feed_hosting(db: &Db, user_id: Uuid) -> Result<Vec<EventSummaryRecord>, DbError> {
+    let rows = sqlx::query_as!(
+        SummaryRow,
+        r#"SELECT e.id, e.host_id, e.title, e.category, e.description, e.location_name,
+                  e.starts_at, e.ends_at, e.timezone, e.capacity, e.max_plus_ones,
+                  e.status::text AS "status!",
+                  COALESCE(g.going_guests, 0) AS "going_guests!",
+                  COALESCE(g.preview_names, ARRAY[]::text[]) AS "preview_guest_names!"
+           FROM events e
+           LEFT JOIN LATERAL (
+             SELECT COUNT(*)::int AS going_guests,
+                    (ARRAY_AGG(u.display_name ORDER BY r2.updated_at))[1:4] AS preview_names
+             FROM rsvps r2
+             JOIN users u ON u.id = r2.user_id
+             WHERE r2.event_id = e.id AND r2.status = 'going'
+           ) g ON TRUE
+           WHERE e.host_id = $1 AND e.status <> 'cancelled'
+           ORDER BY e.starts_at
+           LIMIT 50"#,
+        user_id
+    )
+    .fetch_all(db)
+    .await
+    .map_err(DbError::from_sqlx)?;
+
+    collect_summaries(rows)
+}
+
+pub async fn feed_attending(db: &Db, user_id: Uuid) -> Result<Vec<EventSummaryRecord>, DbError> {
+    let rows = sqlx::query_as!(
+        SummaryRow,
+        r#"SELECT e.id, e.host_id, e.title, e.category, e.description, e.location_name,
+                  e.starts_at, e.ends_at, e.timezone, e.capacity, e.max_plus_ones,
+                  e.status::text AS "status!",
+                  COALESCE(g.going_guests, 0) AS "going_guests!",
+                  COALESCE(g.preview_names, ARRAY[]::text[]) AS "preview_guest_names!"
+           FROM events e
+           JOIN rsvps r ON r.event_id = e.id AND r.user_id = $1
+           LEFT JOIN LATERAL (
+             SELECT COUNT(*)::int AS going_guests,
+                    (ARRAY_AGG(u.display_name ORDER BY r2.updated_at))[1:4] AS preview_names
+             FROM rsvps r2
+             JOIN users u ON u.id = r2.user_id
+             WHERE r2.event_id = e.id AND r2.status = 'going'
+           ) g ON TRUE
+           WHERE r.status IN ('going', 'maybe', 'waitlisted')
+             AND e.status IN ('published', 'ongoing')
+           ORDER BY e.starts_at
+           LIMIT 50"#,
+        user_id
+    )
+    .fetch_all(db)
+    .await
+    .map_err(DbError::from_sqlx)?;
+
+    collect_summaries(rows)
+}
+
+pub struct EventEdit<'a> {
+    pub title: Option<&'a str>,
+    pub category: Option<&'a str>,
+    pub description: Option<Option<&'a str>>,
+    pub location_name: Option<Option<&'a str>>,
+    pub starts_at: Option<OffsetDateTime>,
+    pub ends_at: Option<Option<OffsetDateTime>>,
+    pub timezone: Option<&'a str>,
+    pub capacity: Option<Option<i32>>,
+    pub max_plus_ones: Option<i32>,
+}
+
+pub async fn update(
+    tx: &mut Tx<'_>,
+    id: Uuid,
+    edit: EventEdit<'_>,
+) -> Result<EventRecord, DbError> {
+    let row = sqlx::query_as!(
+        EventRow,
+        r#"UPDATE events SET
+             title          = COALESCE($2, title),
+             category       = COALESCE($3, category),
+             description    = CASE WHEN $4 THEN $5 ELSE description END,
+             location_name  = CASE WHEN $6 THEN $7 ELSE location_name END,
+             starts_at      = COALESCE($8, starts_at),
+             ends_at        = CASE WHEN $9 THEN $10 ELSE ends_at END,
+             timezone       = COALESCE($11, timezone),
+             capacity       = CASE WHEN $12 THEN $13 ELSE capacity END,
+             max_plus_ones  = COALESCE($14, max_plus_ones)
+           WHERE id = $1
+           RETURNING id, host_id, title, category, description, location_name,
+                     starts_at, ends_at, timezone, capacity, max_plus_ones,
+                     status::text AS "status!""#,
+        id,
+        edit.title,
+        edit.category,
+        edit.description.is_some(),
+        edit.description.flatten(),
+        edit.location_name.is_some(),
+        edit.location_name.flatten(),
+        edit.starts_at,
+        edit.ends_at.is_some(),
+        edit.ends_at.flatten(),
+        edit.timezone,
+        edit.capacity.is_some(),
+        edit.capacity.flatten(),
+        edit.max_plus_ones
+    )
+    .fetch_one(&mut **tx)
+    .await
+    .map_err(DbError::from_sqlx)?;
+
+    row.into_record()
+}

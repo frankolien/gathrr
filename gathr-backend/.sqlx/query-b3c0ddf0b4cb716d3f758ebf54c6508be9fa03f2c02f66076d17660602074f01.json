@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT m.event_id, e.title AS event_title, m.seq, m.body, m.created_at\n           FROM messages m JOIN events e ON e.id = m.event_id\n           WHERE m.sender_id = $1 AND m.redacted_at IS NULL\n           ORDER BY m.created_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "event_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "event_title",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "seq",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "body",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "b3c0ddf0b4cb716d3f758ebf54c6508be9fa03f2c02f66076d17660602074f01"
+}

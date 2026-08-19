@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT m.id, m.event_id, m.sender_id,\n                  u.display_name AS sender_display_name,\n                  m.seq, m.body, m.created_at\n           FROM messages m\n           JOIN users u ON u.id = m.sender_id\n           WHERE m.event_id = $1 AND m.seq > $2\n           ORDER BY m.seq ASC\n           LIMIT $3",
+  "query": "WITH inserted AS (\n             INSERT INTO messages (event_id, sender_id, seq, body)\n             VALUES ($1, $2, $3, $4)\n             RETURNING id, event_id, sender_id, seq, body, created_at\n           )\n           SELECT inserted.id, inserted.event_id, inserted.sender_id,\n                  u.display_name AS \"sender_display_name?\",\n                  inserted.seq, inserted.body,\n                  false AS \"redacted!\",\n                  inserted.created_at\n           FROM inserted JOIN users u ON u.id = inserted.sender_id",
   "describe": {
     "columns": [
       {
@@ -20,7 +20,7 @@
       },
       {
         "ordinal": 3,
-        "name": "sender_display_name",
+        "name": "sender_display_name?",
         "type_info": "Text"
       },
       {
@@ -35,6 +35,11 @@
       },
       {
         "ordinal": 6,
+        "name": "redacted!",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 7,
         "name": "created_at",
         "type_info": "Timestamptz"
       }
@@ -42,19 +47,21 @@
     "parameters": {
       "Left": [
         "Uuid",
+        "Uuid",
         "Int8",
-        "Int8"
+        "Text"
       ]
     },
     "nullable": [
       false,
       false,
+      true,
       false,
       false,
       false,
-      false,
+      null,
       false
     ]
   },
-  "hash": "0a6985603e02f10a996fc7bfd81f79decd543d4b753290787248540ad7e0fe36"
+  "hash": "9c0602a8b96ec11c69158e07a701cc4c898cd5e91854d590be27781dd8f9d201"
 }

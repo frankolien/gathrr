@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE messages SET redacted_at = now(), body = ''\n           WHERE sender_id = $1 AND redacted_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "571ea1c8d8f80a9399dae201d8f90291bc850c17be109d876b309f61f359b485"
+}

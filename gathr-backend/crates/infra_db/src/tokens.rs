@@ -49,3 +49,47 @@ pub async fn find_refresh(db: &Db, token_hash: &str) -> Result<Option<RefreshRec
     .map_err(DbError::from_sqlx)
 }
 
+pub async fn burn_refresh(db: &Db, jti: Uuid) -> Result<(), DbError> {
+    sqlx::query!(
+        r#"UPDATE refresh_tokens SET used_at = now() WHERE jti = $1 AND used_at IS NULL"#,
+        jti
+    )
+    .execute(db)
+    .await
+    .map_err(DbError::from_sqlx)?;
+    Ok(())
+}
+
+pub async fn revoke_family(db: &Db, family_id: Uuid) -> Result<(), DbError> {
+    sqlx::query!(
+        r#"UPDATE refresh_tokens SET revoked_at = now()
+           WHERE family_id = $1 AND revoked_at IS NULL"#,
+        family_id
+    )
+    .execute(db)
+    .await
+    .map_err(DbError::from_sqlx)?;
+    Ok(())
+}
+
+pub async fn insert_guest_session(
+    tx: &mut Tx<'_>,
+    user_id: Uuid,
+    token_hash: &str,
+    invite_id: Option<Uuid>,
+    expires_at: OffsetDateTime,
+) -> Result<(), DbError> {
+    sqlx::query!(
+        r#"INSERT INTO guest_sessions (user_id, token_hash, invite_id, expires_at)
+           VALUES ($1, $2, $3, $4)"#,
+        user_id,
+        token_hash,
+        invite_id,
+        expires_at
+    )
+    .execute(&mut **tx)
+    .await
+    .map_err(DbError::from_sqlx)?;
+    Ok(())
+}
+

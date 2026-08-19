@@ -127,3 +127,114 @@ fn entries_of_kind<'a>(feed: &'a Value, kind: &str, event: Uuid) -> Vec<&'a Valu
         .collect()
 }
 
+#[actix_web::test]
+async fn saying_yes_puts_the_guest_by_name_in_the_hosts_feed() {
+    let state = state().await;
+    let app = service!(state);
+    let host = sign_in(&app, "Amara Chukwu").await;
+    let guest = sign_in(&app, "Tunde Bello").await;
+    let event = publish_event(&app, &host, "Rooftop Supper").await;
+
+    rsvp(&app, &guest, event, "going").await;
+
+    let feed = feed(&app, &host).await;
+    let accepted = entries_of_kind(&feed, "rsvp_accepted", event);
+    assert_eq!(accepted.len(), 1, "the host should hear about the yes once");
+    assert_eq!(accepted[0]["actor_display_name"], "Tunde Bello");
+    assert_eq!(accepted[0]["event_title"], "Rooftop Supper");
+    assert_eq!(accepted[0]["read"], false);
+}
+
+#[actix_web::test]
+async fn publishing_tells_the_host_their_event_is_live() {
+    let state = state().await;
+    let app = service!(state);
+    let host = sign_in(&app, "Amara Chukwu").await;
+    let event = publish_event(&app, &host, "Listening Party").await;
+
+    let feed = feed(&app, &host).await;
+    assert_eq!(entries_of_kind(&feed, "event_published", event).len(), 1);
+}
+
+#[actix_web::test]
+async fn a_chatty_thread_stays_one_unread_line_until_it_is_read() {
+    let state = state().await;
+    let app = service!(state);
+    let host = sign_in(&app, "Amara Chukwu").await;
+    let guest = sign_in(&app, "Tunde Bello").await;
+    let event = publish_event(&app, &host, "Book Club").await;
+    rsvp(&app, &guest, event, "going").await;
+
+    for line in ["are we still on?", "bringing my sister", "see you at 7"] {
+        post_message(&app, &guest, event, line).await;
+    }
+
+    let before = feed(&app, &host).await;
+    assert_eq!(
+        entries_of_kind(&before, "message_posted", event).len(),
+        1,
+        "three messages must not become three rows in the feed"
+    );
+
+    let cleared = test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri("/v1/notifications/read")
+            .insert_header(("authorization", format!("Bearer {host}")))
+            .set_json(json!({ "ids": [] }))
+            .to_request(),
+    )
+    .await;
+    assert_eq!(cleared.status(), 200);
+    assert_eq!(body_json(cleared).await["unread"], 0);
+
+    post_message(&app, &guest, event, "running ten late").await;
+    let after = feed(&app, &host).await;
+    assert_eq!(
+        entries_of_kind(&after, "message_posted", event).len(),
+        2,
+        "a message after catching up deserves its own line"
+    );
+    assert_eq!(after["unread"], 1);
+}
+
+#[actix_web::test]
+async fn a_guest_never_sees_the_hosts_side_of_the_feed() {
+    let state = state().await;
+    let app = service!(state);
+    let host = sign_in(&app, "Amara Chukwu").await;
+    let guest = sign_in(&app, "Tunde Bello").await;
+    let event = publish_event(&app, &host, "Quiet Dinner").await;
+    rsvp(&app, &guest, event, "going").await;
+
+    let feed = feed(&app, &guest).await;
+    assert!(
+        entries_of_kind(&feed, "rsvp_accepted", event).is_empty(),
+        "who said yes is the host's business"
+    );
+}
+
+#[actix_web::test]
+async fn muting_an_event_stops_it_reaching_the_feed() {
+    let state = state().await;
+    let app = service!(state);
+    let host = sign_in(&app, "Amara Chukwu").await;
+    let guest = sign_in(&app, "Tunde Bello").await;
+    let event = publish_event(&app, &host, "Loud Party").await;
+
+    test::call_service(
+        &app,
+        test::TestRequest::post()
+            .uri(&format!("/v1/events/{event}/mute"))
+            .insert_header(("authorization", format!("Bearer {host}")))
+            .set_json(json!({ "muted": true }))
+            .to_request(),
+    )
+    .await;
+
+    rsvp(&app, &guest, event, "going").await;
+
+    let feed = feed(&app, &host).await;
+    assert!(entries_of_kind(&feed, "rsvp_accepted", event).is_empty());
+}
+

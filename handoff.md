@@ -552,3 +552,47 @@ Wrapped in a transaction that first locks the event row and checks the capacity 
 ## Folder structure
 - Enforce the workspace layout (Section 2.1) and SPM layout (Section 3.2). New code goes in the correct crate/package or it does not merge.
 
+## Testing (required)
+- Rust: unit tests on domain; integration tests with testcontainers Postgres. New endpoint => integration test.
+- Swift: Swift Testing for view models/services with fakes. New feature => tests.
+- CI must be green: fmt, clippy -D warnings, tests, sqlx prepare check.
+```
+
+### 6.2 Suggested Claude Code Skills / Slash-Commands
+
+- `/design-system`: generate or update DesignSystem components from the token spec (colors, type scale, card, chip, avatar cluster).
+- `/api-contract-sync`: keep the Rust DTOs and the Swift Models/Networking layer in sync from a single source (OpenAPI or a shared schema); regenerate Swift endpoints when the endpoint table changes.
+- `/migration`: scaffold a new sqlx migration plus the matching schema doc update and DDL constraints.
+- `/new-feature`: scaffold a new SPM feature package (Router, @Observable model, protocol, tests).
+- `/endpoint`: scaffold an Actix handler + DTO + integration test + endpoint table row.
+
+### 6.3 Phased Build Plan
+
+Phases end on the metric gates in Section 23, not on features shipped. Feature scope per phase is governed by the doctrine in Section 22.
+
+Phase 0: Foundations
+- Backend: workspace scaffold, config, tracing, Docker + cargo-chef, Fly.io/Caddy deploy of a health check to `jnb`, Postgres + first migration, CI (fmt/clippy/test/sqlx-prepare).
+- Platform (L0, Section 24): feature flag service with kill switch, server-driven config endpoint, min-supported-client version check with a forced-upgrade screen. These three ship before any feature does.
+- iOS: app scaffold, SPM packages, DesignSystem tokens, Router, string catalog, Swift Testing setup.
+
+Phase 1: Auth + Users
+- Backend: Sign in with Apple, OTP request/verify, JWT + refresh rotation (argon2 where needed), devices endpoints, users/me.
+- iOS: onboarding carousel, sign-in, token storage in Keychain, deferred-auth guest path.
+
+Phase 2: Events + Invitations (MVP core)
+- Backend: event CRUD, publish/cancel, media presign (R2), invite codes, feeds (this_week/hosting/attending).
+- iOS: home screen (This week cards, greeting, quick actions), create event with templates + cover upload, event detail, invite share (link/code/QR), universal links.
+
+Phase 3: RSVP + Guests + Reminders
+- Backend: idempotent RSVP upsert with capacity transaction, waitlist, guest list/manage, reminder_jobs + worker + APNs (a2).
+- iOS: RSVP flow (Going/Maybe/Can't Go + plus-ones), guest management, countdown, push registration + handling, offline outbox for RSVP.
+
+Phase 4: Chat
+- Backend: messages table + per-event seq, actix-ws endpoint, broadcast fan-out, keyset history.
+- iOS: chat UI, URLSessionWebSocketTask actor client, reconnect, offline queue for messages.
+
+Phase 5: Hardening
+- Rate limiting, idempotency store, observability dashboards, load tests, integration test coverage, accessibility pass, App Store prep.
+
+---
+

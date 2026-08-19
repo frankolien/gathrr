@@ -93,3 +93,16 @@ pub fn terms(invite: &InviteRecord) -> InviteTerms {
     }
 }
 
+fn first_name(display_name: &str) -> String {
+    display_name
+        .split_whitespace()
+        .next()
+        .unwrap_or(display_name)
+        .to_owned()
+}
+
+fn entropy() -> [u8; CODE_LENGTH] {
+    let mut bytes = [0u8; CODE_LENGTH];
+    rand::thread_rng().fill_bytes(&mut bytes);
+    bytes
+}

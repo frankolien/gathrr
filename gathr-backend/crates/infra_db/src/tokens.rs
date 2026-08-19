@@ -93,3 +93,27 @@ pub async fn insert_guest_session(
     Ok(())
 }
 
+pub async fn find_guest_session(db: &Db, token_hash: &str) -> Result<Option<Uuid>, DbError> {
+    let row = sqlx::query!(
+        r#"SELECT user_id FROM guest_sessions
+           WHERE token_hash = $1 AND expires_at > now()"#,
+        token_hash
+    )
+    .fetch_optional(db)
+    .await
+    .map_err(DbError::from_sqlx)?;
+
+    Ok(row.map(|row| row.user_id))
+}
+
+pub async fn revoke_all_for_user(db: &Db, user_id: Uuid) -> Result<(), DbError> {
+    sqlx::query!(
+        r#"UPDATE refresh_tokens SET revoked_at = now()
+           WHERE user_id = $1 AND revoked_at IS NULL"#,
+        user_id
+    )
+    .execute(db)
+    .await
+    .map(|_| ())
+    .map_err(DbError::from_sqlx)
+}

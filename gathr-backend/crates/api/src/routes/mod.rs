@@ -4,6 +4,7 @@ pub mod invites;
 pub mod media;
 pub mod messages;
 pub mod notifications;
+pub mod privacy;
 pub mod rsvps;
 pub mod web;
 
@@ -40,6 +41,12 @@ pub fn configure(cfg: &mut axw::ServiceConfig) {
                 .route("/auth/logout", axw::post().to(auth::logout))
                 .route("/me", axw::get().to(auth::me))
                 .route("/me", axw::patch().to(auth::update_profile))
+                .route("/me", axw::delete().to(privacy::erase))
+                .route("/me/export", axw::get().to(privacy::export))
+                .route("/reports", axw::post().to(privacy::report))
+                .route("/blocks", axw::post().to(privacy::block))
+                .route("/blocks", axw::get().to(privacy::blocks))
+                .route("/blocks/{uid}", axw::delete().to(privacy::unblock))
                 .route("/notifications", axw::get().to(notifications::feed))
                 .route(
                     "/notifications/read",

@@ -43,6 +43,9 @@ pub async fn create(
             capacity: body.capacity,
             max_plus_ones: body.max_plus_ones.unwrap_or(DEFAULT_MAX_PLUS_ONES),
             publish_now: body.publish_now,
+            cover_template_id: body.cover_template_id.clone(),
+            visibility: body.visibility.unwrap_or_default(),
+            requires_approval: body.requires_approval.unwrap_or(false),
         },
     )
     .await?;
@@ -109,6 +112,9 @@ pub async fn edit(
             timezone: body.timezone,
             capacity: body.capacity,
             max_plus_ones: body.max_plus_ones,
+            cover_template_id: body.cover_template_id,
+            visibility: body.visibility,
+            requires_approval: body.requires_approval,
         },
     )
     .await?;

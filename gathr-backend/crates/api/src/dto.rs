@@ -1,6 +1,6 @@
 use gathr_application::events::EventDetail;
 use gathr_application::rsvps::RsvpView;
-use gathr_domain::{Category, EventStatus, RsvpStatus};
+use gathr_domain::{Category, EventStatus, EventVisibility, RsvpStatus};
 use gathr_infra_db::hosts::HostRecord;
 use gathr_infra_db::notifications::NotificationRecord;
 use gathr_infra_db::{EventSummaryRecord, GuestRecord, InviteRecord};
@@ -75,6 +75,10 @@ pub struct EditEventRequest {
     #[serde(default, deserialize_with = "double_option")]
     pub capacity: Option<Option<i32>>,
     pub max_plus_ones: Option<i32>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub cover_template_id: Option<Option<String>>,
+    pub visibility: Option<EventVisibility>,
+    pub requires_approval: Option<bool>,
 }
 
 fn double_option<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
@@ -207,6 +211,12 @@ pub struct CreateEventRequest {
     pub max_plus_ones: Option<i32>,
     #[serde(default)]
     pub publish_now: bool,
+    #[serde(default)]
+    pub cover_template_id: Option<String>,
+    #[serde(default)]
+    pub visibility: Option<EventVisibility>,
+    #[serde(default)]
+    pub requires_approval: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -224,6 +234,9 @@ pub struct EventSummary {
     pub capacity: Option<i32>,
     pub going_guests: i32,
     pub preview_guest_names: Vec<String>,
+    pub cover_template_id: Option<String>,
+    pub visibility: EventVisibility,
+    pub requires_approval: bool,
 }
 
 impl From<EventSummaryRecord> for EventSummary {
@@ -240,6 +253,9 @@ impl From<EventSummaryRecord> for EventSummary {
             capacity: record.event.capacity,
             going_guests: record.going_guests,
             preview_guest_names: record.preview_guest_names,
+            cover_template_id: record.event.cover_template_id,
+            visibility: record.event.visibility,
+            requires_approval: record.event.requires_approval,
         }
     }
 }

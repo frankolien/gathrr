@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, host_id, title, category, description, location_name,\n                  starts_at, ends_at, timezone, capacity, max_plus_ones,\n                  status::text AS \"status!\"\n           FROM events WHERE id = $1 FOR UPDATE",
+  "query": "SELECT id, host_id, title, category, description, location_name,\n                  starts_at, ends_at, timezone, capacity, max_plus_ones,\n                  status::text AS \"status!\",\n                  cover_template_id, visibility::text AS \"visibility!\", requires_approval\n           FROM events WHERE id = $1 FOR UPDATE",
   "describe": {
     "columns": [
       {
@@ -62,6 +62,21 @@
         "ordinal": 11,
         "name": "status!",
         "type_info": "Text"
+      },
+      {
+        "ordinal": 12,
+        "name": "cover_template_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 13,
+        "name": "visibility!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 14,
+        "name": "requires_approval",
+        "type_info": "Bool"
       }
     ],
     "parameters": {
@@ -81,8 +96,11 @@
       false,
       true,
       false,
-      null
+      null,
+      true,
+      null,
+      false
     ]
   },
-  "hash": "6f9395d77e69cd01cd1622ed5bcccbb1530605d4ee5e6958802d9c305e3b0e2b"
+  "hash": "19d50b688d30ff6b4b7bc5e053aac0cc523ea95f8466cd12702ddf979c4598d6"
 }

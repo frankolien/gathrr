@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT e.id, e.host_id, e.title, e.category, e.description, e.location_name,\n                  e.starts_at, e.ends_at, e.timezone, e.capacity, e.max_plus_ones,\n                  e.status::text AS \"status!\",\n                  COALESCE(g.going_guests, 0) AS \"going_guests!\",\n                  COALESCE(g.preview_names, ARRAY[]::text[]) AS \"preview_guest_names!\"\n           FROM events e\n           LEFT JOIN LATERAL (\n             SELECT COUNT(*)::int AS going_guests,\n                    (ARRAY_AGG(u.display_name ORDER BY r2.updated_at))[1:4] AS preview_names\n             FROM rsvps r2\n             JOIN users u ON u.id = r2.user_id\n             WHERE r2.event_id = e.id AND r2.status = 'going'\n           ) g ON TRUE\n           WHERE e.id = $1",
+  "query": "SELECT e.id, e.host_id, e.title, e.category, e.description, e.location_name,\n                  e.starts_at, e.ends_at, e.timezone, e.capacity, e.max_plus_ones,\n                  e.status::text AS \"status!\",\n                  e.cover_template_id, e.visibility::text AS \"visibility!\", e.requires_approval,\n                  COALESCE(g.going_guests, 0) AS \"going_guests!\",\n                  COALESCE(g.preview_names, ARRAY[]::text[]) AS \"preview_guest_names!\"\n           FROM events e\n           JOIN rsvps r ON r.event_id = e.id AND r.user_id = $1\n           LEFT JOIN LATERAL (\n             SELECT COUNT(*)::int AS going_guests,\n                    (ARRAY_AGG(u.display_name ORDER BY r2.updated_at))[1:4] AS preview_names\n             FROM rsvps r2\n             JOIN users u ON u.id = r2.user_id\n             WHERE r2.event_id = e.id AND r2.status = 'going'\n           ) g ON TRUE\n           WHERE r.status IN ('going', 'maybe', 'waitlisted')\n             AND e.status IN ('published', 'ongoing')\n           ORDER BY e.starts_at\n           LIMIT 50",
   "describe": {
     "columns": [
       {
@@ -65,11 +65,26 @@
       },
       {
         "ordinal": 12,
+        "name": "cover_template_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 13,
+        "name": "visibility!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 14,
+        "name": "requires_approval",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 15,
         "name": "going_guests!",
         "type_info": "Int4"
       },
       {
-        "ordinal": 13,
+        "ordinal": 16,
         "name": "preview_guest_names!",
         "type_info": "TextArray"
       }
@@ -92,9 +107,12 @@
       true,
       false,
       null,
+      true,
+      null,
+      false,
       null,
       null
     ]
   },
-  "hash": "1698545eb05df03b9acccfda30abed372f56a9a481987cfa5ad0bdcdb3ab856c"
+  "hash": "941d76f4777d7069d87414bac96c7a88718eaa5e7afac73b6543436ffc34a48c"
 }

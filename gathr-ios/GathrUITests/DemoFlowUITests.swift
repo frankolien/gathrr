@@ -66,6 +66,45 @@ final class DemoFlowUITests: XCTestCase {
         }
     }
 
+    func testTheCoverPickerSwapsTheArtworkOnTheComposer() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-gathr-signed-out"]
+        app.launch()
+
+        finishOnboarding(app)
+        signIn(app)
+        setUpProfile(app, named: "Amara Chukwu")
+        answerTheNotificationPrimer(app)
+        openComposer(app)
+
+        let artwork = app.buttons["Choose event artwork"].firstMatch
+        XCTAssertTrue(artwork.waitForExistence(timeout: 20), "the composer should offer its artwork for editing")
+        attachScreenshot(app, named: "06-composer")
+        artwork.tap()
+
+        XCTAssertTrue(
+            app.staticTexts["Add Cover Image"].waitForExistence(timeout: 20),
+            "tapping the artwork should open the cover picker"
+        )
+        attachScreenshot(app, named: "07-cover-picker-suggested")
+
+        app.buttons["Party"].firstMatch.tap()
+        let party = app.buttons["Let's Have A Party"].firstMatch
+        XCTAssertTrue(party.waitForExistence(timeout: 10), "the party category should list its covers")
+        attachScreenshot(app, named: "08-cover-picker-party")
+        party.tap()
+
+        XCTAssertTrue(
+            app.staticTexts["Add Cover Image"].waitForNonExistence(timeout: 10),
+            "choosing a cover should close the picker"
+        )
+        XCTAssertTrue(
+            app.buttons["Choose event artwork"].firstMatch.waitForExistence(timeout: 10),
+            "the composer should come back wearing the chosen cover"
+        )
+        attachScreenshot(app, named: "09-composer-recovered")
+    }
+
     private func openNotifications(_ app: XCUIApplication, expecting title: String) {
         app.buttons["Notifications"].firstMatch.tap()
 
@@ -118,7 +157,7 @@ final class DemoFlowUITests: XCTestCase {
         getStarted.tap()
     }
 
-    private func publishEvent(_ app: XCUIApplication, titled title: String) {
+    private func openComposer(_ app: XCUIApplication) {
         let starters = ["New event", "New Event"]
         var tapped = false
         for label in starters where !tapped {
@@ -129,12 +168,16 @@ final class DemoFlowUITests: XCTestCase {
             }
         }
         XCTAssertTrue(tapped, "there should be a way to start a new event from home")
+    }
 
-        let titleField = app.textFields["What's the occasion?"].firstMatch
+    private func publishEvent(_ app: XCUIApplication, titled title: String) {
+        openComposer(app)
+
+        let titleField = app.textFields["Event Name"].firstMatch
         type(title, into: titleField)
         attachScreenshot(app, named: "02-create-event")
 
-        app.buttons["Publish"].firstMatch.tap()
+        app.buttons["Publish event"].firstMatch.tap()
     }
 
     private func setUpProfile(_ app: XCUIApplication, named name: String) {

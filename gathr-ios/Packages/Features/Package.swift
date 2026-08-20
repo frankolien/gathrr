@@ -18,7 +18,7 @@ let package = Package(
     targets: [
         .target(name: "Routing", dependencies: ["Models", "DesignSystem"], swiftSettings: strict),
         .target(name: "Home", dependencies: uiDependencies, swiftSettings: strict),
-        .target(name: "Calendar", dependencies: uiDependencies + ["Home"], swiftSettings: strict),
+        .target(name: "EventCalendar", dependencies: uiDependencies + ["Home"], swiftSettings: strict),
         .target(name: "EventDetail", dependencies: uiDependencies, swiftSettings: strict),
         .target(
             name: "Onboarding",
@@ -35,7 +35,7 @@ let package = Package(
         .target(
             name: "AppShell",
             dependencies: uiDependencies + [
-                "Home", "Calendar", "EventDetail", "CreateEvent", "JoinEvent", "Notifications", "Profile",
+                "Home", "EventCalendar", "EventDetail", "CreateEvent", "JoinEvent", "Notifications", "Profile",
             ],
             swiftSettings: strict
         ),

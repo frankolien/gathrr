@@ -14,23 +14,29 @@ public struct TabItem: Identifiable, Hashable, Sendable {
     }
 }
 
-public struct LiquidTabBar: View {
+public struct SplitTabBar: View {
     private let items: [TabItem]
+    private let trailing: TabItem
     @Binding private var selection: String
-    private let action: () -> Void
+    private let trailingAction: () -> Void
 
     @Namespace private var slot
-    @Namespace private var glass
 
-    public init(items: [TabItem], selection: Binding<String>, action: @escaping () -> Void) {
+    public init(
+        items: [TabItem],
+        trailing: TabItem,
+        selection: Binding<String>,
+        trailingAction: @escaping () -> Void
+    ) {
         self.items = items
+        self.trailing = trailing
         _selection = selection
-        self.action = action
+        self.trailingAction = trailingAction
     }
 
     public var body: some View {
         if #available(iOS 26.0, *) {
-            GlassEffectContainer(spacing: Spacing.gutter) { bar }
+            GlassEffectContainer(spacing: Spacing.stackGap) { bar }
         } else {
             bar
         }
@@ -39,7 +45,7 @@ public struct LiquidTabBar: View {
     private var bar: some View {
         HStack(spacing: Spacing.stackGap) {
             pill
-            composeButton
+            trailingCapsule
         }
         .padding(.horizontal, Spacing.gutter)
     }
@@ -48,31 +54,45 @@ public struct LiquidTabBar: View {
         HStack(spacing: 0) {
             ForEach(items) { item in
                 Button {
-                    withAnimation(.bouncy(duration: 0.5, extraBounce: 0.25)) {
+                    withAnimation(.smooth(duration: 0.38, extraBounce: 0.12)) {
                         selection = item.id
                     }
                 } label: {
-                    tabLabel(item)
+                    cell(item, chosen: selection == item.id)
+                        .matchedGeometryEffect(id: item.id, in: slot, isSource: true)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(item.title)
                 .accessibilityAddTraits(selection == item.id ? [.isSelected] : [])
             }
         }
-        .frame(maxWidth: .infinity)
+        .padding(Spacing.unit)
         .background { lens }
-        .modifier(BarSurface())
+        .modifier(GlassBar())
     }
 
-    private func tabLabel(_ item: TabItem) -> some View {
-        let chosen = selection == item.id
-        return Image(systemName: chosen ? item.selectedSymbol : item.symbol)
-            .font(.system(size: 18, weight: chosen ? .semibold : .regular))
-            .foregroundStyle(chosen ? Palette.accent : Palette.textTertiary)
-            .frame(maxWidth: .infinity)
-            .frame(height: Spacing.tabBarHeight)
-            .contentShape(Rectangle())
-            .matchedGeometryEffect(id: item.id, in: slot, isSource: true)
+    private var trailingCapsule: some View {
+        Button(action: trailingAction) {
+            cell(trailing, chosen: false)
+                .frame(width: Spacing.trailingTabWidth)
+                .padding(Spacing.unit)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(trailing.title)
+        .modifier(GlassBar())
+    }
+
+    private func cell(_ item: TabItem, chosen: Bool) -> some View {
+        VStack(spacing: 3) {
+            Image(systemName: chosen ? item.selectedSymbol : item.symbol)
+                .font(.system(size: 17, weight: chosen ? .semibold : .regular))
+            Text(item.title)
+                .font(Typography.chip)
+        }
+        .foregroundStyle(chosen ? Palette.accent : Palette.tabIdle)
+        .frame(maxWidth: .infinity)
+        .frame(height: Spacing.tabBarHeight)
+        .contentShape(Rectangle())
     }
 
     @ViewBuilder
@@ -81,32 +101,16 @@ public struct LiquidTabBar: View {
             Capsule()
                 .fill(.clear)
                 .glassEffect(.regular.interactive(), in: .capsule)
-                .glassEffectID("lens", in: glass)
                 .matchedGeometryEffect(id: selection, in: slot, isSource: false)
         } else {
             Capsule()
-                .fill(Palette.accent.opacity(0.14))
+                .fill(Palette.tabLens)
                 .matchedGeometryEffect(id: selection, in: slot, isSource: false)
         }
     }
-
-    private var composeButton: some View {
-        Button(action: action) {
-            Image(systemName: "plus")
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(Palette.onAccent)
-                .frame(
-                    width: Spacing.floatingActionDiameter,
-                    height: Spacing.floatingActionDiameter
-                )
-                .background(Palette.accent, in: Circle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("New event")
-    }
 }
 
-private struct BarSurface: ViewModifier {
+private struct GlassBar: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
             content.glassEffect(.regular, in: .capsule)

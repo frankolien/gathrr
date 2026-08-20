@@ -32,6 +32,8 @@ public enum Palette {
     public static let onHeader = Color.white
     public static let onHeaderMuted = Color.white.opacity(0.85)
     public static let headerGlass = Color.white.opacity(0.18)
+    public static let tabIdle = adaptive(light: 0x8E_8E_93, dark: 0x8E_8E_93)
+    public static let tabLens = adaptive(light: 0xFF_FF_FF, dark: 0x3A_3A_3C)
 
     public static let headerGradient = LinearGradient(
         stops: [

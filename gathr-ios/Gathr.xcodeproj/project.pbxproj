@@ -35,7 +35,7 @@
 		494354B5BF0F301446A4243B /* DesignSystem */ = {isa = PBXFileReference; lastKnownFileType = folder; name = DesignSystem; path = Packages/DesignSystem; sourceTree = SOURCE_ROOT; };
 		6D66BFA785CEEB8DBCB3AFEE /* DemoFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoFlowUITests.swift; sourceTree = "<group>"; };
 		7D854BFECF9B22AAF7E45C6F /* GathrUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = GathrUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		92456D6EAF57D1F46106B536 /* Gathr.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Gathr.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		92456D6EAF57D1F46106B536 /* Gathr.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Gathr.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9DC6BDBE394C3A863E1D6DC1 /* Models */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Models; path = Packages/Models; sourceTree = SOURCE_ROOT; };
 		F91178E5FEEA0505CF82DBAB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		F943B1F6D4D9002EA8951374 /* Networking */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Networking; path = Packages/Networking; sourceTree = SOURCE_ROOT; };
@@ -326,6 +326,7 @@
 				CODE_SIGN_ENTITLEMENTS = GathrApp/Gathr.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = YCKKUWB4WD;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				INFOPLIST_FILE = GathrApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -349,6 +350,7 @@
 				CODE_SIGN_ENTITLEMENTS = GathrApp/Gathr.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = YCKKUWB4WD;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				INFOPLIST_FILE = GathrApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

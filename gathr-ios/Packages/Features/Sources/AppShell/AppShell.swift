@@ -1,6 +1,6 @@
-import Calendar
 import CreateEvent
 import DesignSystem
+import EventCalendar
 import EventDetail
 import Home
 import JoinEvent
@@ -66,8 +66,7 @@ public struct AppShell: View {
 
     public var body: some View {
         NavigationStack(path: Binding(get: { router.path }, set: { router.path = $0 })) {
-            tabContent
-                .safeAreaInset(edge: .bottom) { floatingBar }
+            tabs
                 .navigationDestination(for: Route.self) { route in
                     destination(route)
                 }
@@ -90,14 +89,38 @@ public struct AppShell: View {
         }
     }
 
+    private var tabs: some View {
+        deck
+            .safeAreaInset(edge: .bottom) {
+                SplitTabBar(
+                    items: flags.tabs.map(\.item),
+                    trailing: TabItem(
+                        id: "create",
+                        symbol: "plus",
+                        selectedSymbol: "plus",
+                        title: "Create"
+                    ),
+                    selection: Binding(
+                        get: { selectedTab.rawValue },
+                        set: { selectedTab = AppTab(rawValue: $0) ?? .home }
+                    )
+                ) {
+                    isCreating = true
+                }
+                .padding(.bottom, Spacing.unit)
+            }
+    }
+
     @ViewBuilder
-    private var tabContent: some View {
+    private var deck: some View {
         switch selectedTab {
         case .home:
             HomeView(
                 model: home,
                 router: router,
-                accountName: account?.displayName ?? "there"
+                accountName: account?.displayName ?? "there",
+                onCreate: { isCreating = true },
+                onJoin: { isJoining = true }
             )
         case .explore:
             ContentUnavailableView("Explore is coming soon", systemImage: "safari")
@@ -105,12 +128,15 @@ public struct AppShell: View {
             CalendarView(
                 model: home,
                 router: router,
-                accountName: account?.displayName ?? "there"
+                accountName: account?.displayName ?? "there",
+                onCreate: { isCreating = true },
+                onJoin: { isJoining = true }
             )
         case .profile:
             ProfileView(model: ProfileModel(auth: auth, account: account), onSignOut: onSignOut)
         }
     }
+
 
     @ViewBuilder
     private func destination(_ route: Route) -> some View {
@@ -126,20 +152,5 @@ public struct AppShell: View {
         }
     }
 
-    private var floatingBar: some View {
-        LiquidTabBar(
-            items: flags.tabs.map(\.item),
-            selection: Binding(
-                get: { selectedTab.rawValue },
-                set: { raw in
-                    selectedTab = AppTab(rawValue: raw) ?? .home
-                    router.popToRoot()
-                }
-            )
-        ) {
-            isCreating = true
-        }
-        .padding(.bottom, Spacing.unit)
-    }
 
 }

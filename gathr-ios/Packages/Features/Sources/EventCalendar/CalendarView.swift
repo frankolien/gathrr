@@ -1,9 +1,10 @@
 import DesignSystem
+import Home
 import Models
 import Routing
 import SwiftUI
 
-public struct HomeView: View {
+public struct CalendarView: View {
     @State private var model: HomeModel
     private let router: Router
     private let accountName: String
@@ -25,63 +26,108 @@ public struct HomeView: View {
     }
 
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Spacing.sectionGap) {
-                greeting
-                if model.isEmptyAfterLoading {
-                    emptyState
-                } else {
-                    thisWeekSection
-                    quickActions
-                    listSection("Hosting", events: model.hosting, filter: .hosting)
-                    listSection("Attending", events: model.attending, filter: .attending)
-                }
-            }
-            .padding(.horizontal, Spacing.gutter)
-            .padding(.top, Spacing.stackGap)
-            .padding(.bottom, Spacing.tabBarClearance)
+        GradientHeaderScreen {
+            header
+        } content: {
+            agenda
         }
-        .scrollIndicators(.hidden)
-        .background(Palette.canvas.ignoresSafeArea())
         .refreshable { await model.load() }
         .task { await model.load() }
-        .overlay(alignment: .top) { staleBanner }
     }
 
-    private var greeting: some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 1) {
-                EyebrowText(model.greeting())
-                Text(accountName)
-                    .font(Typography.titleM)
-                    .foregroundStyle(Palette.textPrimary)
+    private var header: some View {
+        VStack(alignment: .leading, spacing: Spacing.gutter) {
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(model.greeting().uppercased())
+                        .font(Typography.eyebrow)
+                        .tracking(0.6)
+                        .foregroundStyle(Palette.onHeaderMuted)
+                    Text(accountName)
+                        .font(Typography.titleM)
+                        .foregroundStyle(Palette.onHeader)
+                }
+                Spacer()
+                Button {
+                    router.push(.notifications)
+                } label: {
+                    Image(systemName: "bell")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(Palette.onHeader)
+                        .frame(width: 36, height: 36)
+                        .background(
+                            Palette.headerGlass,
+                            in: RoundedRectangle(cornerRadius: Radius.thumb, style: .continuous)
+                        )
+                }
+                .accessibilityLabel("Notifications")
             }
-            Spacer()
-            Button {
-                router.push(.notifications)
-            } label: {
-                Avatar(name: accountName)
-                    .overlay(alignment: .topTrailing) {
-                        if model.hasAnyContent {
-                            Circle()
-                                .fill(Palette.statusDeclined)
-                                .frame(width: 9, height: 9)
-                                .overlay { Circle().strokeBorder(Palette.canvas, lineWidth: 1.5) }
-                                .offset(x: 1, y: -1)
-                        }
+
+            WeekStrip(days: model.week())
+
+            VStack(alignment: .leading, spacing: Spacing.unit) {
+                Text("This week")
+                    .font(Typography.subhead)
+                    .foregroundStyle(Palette.onHeaderMuted)
+
+                HStack(alignment: .center) {
+                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                        Text("\(model.plannedCount())")
+                            .font(.system(size: 40, weight: .medium, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(Palette.onHeader)
+                        Text(model.plannedCount() == 1 ? "event" : "events")
+                            .font(Typography.subhead)
+                            .foregroundStyle(Palette.onHeaderMuted)
                     }
+                    .accessibilityElement(children: .combine)
+                    Spacer()
+                    if model.plannedCount() > 0 {
+                        ActivePill("Active")
+                    }
+                }
             }
-            .accessibilityLabel("Notifications")
+
+            HStack(spacing: 0) {
+                HeaderStat(value: model.todayCount(), label: "Today")
+                HeaderStat(value: model.upcomingCount(), label: "Upcoming")
+                HeaderStat(value: model.hostingCount, label: "Hosting")
+            }
         }
+        .padding(.horizontal, Spacing.gutter)
+        .padding(.top, Spacing.stackGap)
+        .padding(.bottom, Spacing.sectionGap)
+    }
+
+    private var agenda: some View {
+        VStack(alignment: .leading, spacing: Spacing.sectionGap) {
+            if model.isEmptyAfterLoading {
+                ContentUnavailableView {
+                    Label("Nothing scheduled", systemImage: "calendar")
+                } description: {
+                    Text("Events you host or join will line up here.")
+                }
+                .padding(.top, Spacing.sectionGap)
+            } else {
+                thisWeekSection
+                quickActions
+                listSection("Hosting", events: model.hosting, filter: .hosting)
+                listSection("Attending", events: model.attending, filter: .attending)
+            }
+        }
+        .padding(.horizontal, Spacing.gutter)
+        .padding(.top, Spacing.gutter)
+        .padding(.bottom, Spacing.tabBarClearance)
     }
 
     @ViewBuilder
     private var thisWeekSection: some View {
         if !model.thisWeek.isEmpty {
             VStack(alignment: .leading, spacing: Spacing.stackGap) {
-                SectionHeader("This week", actionTitle: "See all") {
+                SectionHeader("Upcoming", actionTitle: "See all") {
                     router.push(.feed(.thisWeek))
                 }
+
                 ScrollView(.horizontal) {
                     LazyHStack(spacing: Spacing.stackGap) {
                         ForEach(model.thisWeek) { event in
@@ -95,7 +141,7 @@ public struct HomeView: View {
                                 )
                             }
                             .buttonStyle(.plain)
-                            .containerRelativeFrame(.horizontal, count: 1, spacing: Spacing.stackGap)
+                            .containerRelativeFrame(.horizontal, count: 5, span: 4, spacing: Spacing.stackGap)
                             .scrollTransition { content, phase in
                                 content
                                     .scaleEffect(phase.isIdentity ? 1 : 0.94)
@@ -156,31 +202,6 @@ public struct HomeView: View {
                     .buttonStyle(.plain)
                 }
             }
-        }
-    }
-
-    private var emptyState: some View {
-        ContentUnavailableView {
-            Label("No events yet", systemImage: "calendar.badge.plus")
-        } description: {
-            Text("Create your first invite, or join one with a code.")
-        } actions: {
-            PrimaryButton("New Event", action: onCreate)
-            SecondaryButton("Join Event", action: onJoin)
-        }
-        .padding(.top, Spacing.sectionGap)
-    }
-
-    @ViewBuilder
-    private var staleBanner: some View {
-        if model.isShowingStaleContent, case .failed(let message) = model.phase {
-            Text(message)
-                .font(Typography.footnote)
-                .foregroundStyle(Palette.textSecondary)
-                .padding(.horizontal, Spacing.stackGap)
-                .padding(.vertical, 6)
-                .background(Palette.surfaceInset, in: Capsule())
-                .padding(.top, Spacing.unit)
         }
     }
 }

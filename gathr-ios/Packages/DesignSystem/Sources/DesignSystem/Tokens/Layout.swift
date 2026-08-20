@@ -11,6 +11,7 @@ public enum Spacing {
     public static let tabBarClearance: CGFloat = 96
     public static let tabBarHeight: CGFloat = 52
     public static let floatingActionDiameter: CGFloat = 52
+    public static let trailingTabWidth: CGFloat = 62
 }
 
 public enum Radius {

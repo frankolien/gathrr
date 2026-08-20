@@ -27,6 +27,21 @@ public struct EventDetailView: View {
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                if let detail = model.detail {
+                    ShareLink(item: detail.title, subject: Text(detail.title)) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(Palette.textPrimary)
+                            .frame(width: 44, height: 44)
+                            .background(Palette.surface, in: Circle())
+                            .overlay { Circle().strokeBorder(Palette.glassEdge.opacity(0.8), lineWidth: 1) }
+                    }
+                    .accessibilityLabel("Share event")
+                }
+            }
+        }
     }
 
     @ViewBuilder
@@ -58,10 +73,12 @@ public struct EventDetailView: View {
     private func coverCard(_ detail: EventDetail) -> some View {
         VStack(alignment: .leading, spacing: Spacing.stackGap) {
             ZStack(alignment: .topLeading) {
-                CoverArt(category: detail.category)
+                EventCoverImage(category: detail.category)
                     .frame(height: 200)
                     .clipShape(RoundedRectangle(cornerRadius: Radius.image, style: .continuous))
-                CategoryChip(detail.category).padding(Spacing.stackGap)
+                if detail.category != .birthday {
+                    CategoryChip(detail.category).padding(Spacing.stackGap)
+                }
             }
 
             Text(detail.title)
@@ -82,7 +99,7 @@ public struct EventDetailView: View {
         }
         .padding(Spacing.cardPadding)
         .background(Palette.surface)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.sheet, style: .continuous))
         .cardElevation()
         .padding(.top, Spacing.stackGap)
     }
@@ -104,9 +121,10 @@ public struct EventDetailView: View {
                     .foregroundStyle(Palette.textSecondary)
             }
             .frame(maxWidth: .infinity)
-            .padding(Spacing.cardPadding)
+            .padding(.vertical, Spacing.sectionGap)
+            .padding(.horizontal, Spacing.cardPadding)
             .background(Palette.surface)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.sheet, style: .continuous))
         }
     }
 
@@ -118,20 +136,23 @@ public struct EventDetailView: View {
                 Text(description)
                     .font(Typography.body)
                     .foregroundStyle(Palette.textSecondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(Spacing.cardPadding)
-                    .background(Palette.surfaceInset)
-                    .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, Spacing.gutter)
+                    .padding(.vertical, Spacing.sectionGap)
+                    .background(Palette.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.sheet, style: .continuous))
             }
         }
     }
 
     private var actionBar: some View {
         HStack(spacing: Spacing.stackGap) {
-            SecondaryButton("Share") {}
-            PrimaryButton(model.primaryActionTitle, shape: .rounded, isEnabled: model.canRSVP) {
+            SecondaryButton(model.primaryActionTitle) {
                 isShowingRSVPSheet = true
             }
+            .disabled(!model.canRSVP)
+            PrimaryButton("Chat", shape: .rounded) {}
         }
         .padding(.horizontal, Spacing.gutter)
         .padding(.vertical, Spacing.stackGap)

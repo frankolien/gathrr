@@ -1,0 +1,13 @@
+{
+  "images" : [
+    {
+      "filename" : "EventDetailHero.png",
+      "idiom" : "universal",
+      "scale" : "1x"
+    }
+  ],
+  "info" : {
+    "author" : "gathr",
+    "version" : 1
+  }
+}

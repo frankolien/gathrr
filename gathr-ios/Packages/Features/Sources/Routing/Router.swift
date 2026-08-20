@@ -8,8 +8,6 @@ public enum Route: Hashable, Sendable {
     case guestList(UUID)
     case invite(String)
     case feed(FeedFilter)
-    case createEvent
-    case joinEvent
     case notifications
     case profile
 }
@@ -20,13 +18,8 @@ public enum AppTab: String, Hashable, Sendable, CaseIterable {
     case calendar
     case profile
 
-    public var symbol: String {
-        switch self {
-        case .home: "house"
-        case .explore: "safari"
-        case .calendar: "calendar"
-        case .profile: "person"
-        }
+    public var item: TabItem {
+        TabItem(id: rawValue, symbol: symbol, selectedSymbol: selectedSymbol, title: title)
     }
 
     public var selectedSymbol: String {
@@ -38,8 +31,13 @@ public enum AppTab: String, Hashable, Sendable, CaseIterable {
         }
     }
 
-    public var item: TabItem {
-        TabItem(id: rawValue, symbol: symbol, selectedSymbol: selectedSymbol, title: title)
+    public var symbol: String {
+        switch self {
+        case .home: "house"
+        case .explore: "safari"
+        case .calendar: "calendar"
+        case .profile: "person"
+        }
     }
 
     public var title: String {

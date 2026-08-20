@@ -17,6 +17,24 @@ public struct CoverArt: View {
     }
 }
 
+public struct EventCoverImage: View {
+    private let category: EventCategory
+
+    public init(category: EventCategory) {
+        self.category = category
+    }
+
+    public var body: some View {
+        if category == .birthday {
+            Image("EventDetailHero", bundle: .module)
+                .resizable()
+                .scaledToFill()
+        } else {
+            CoverArt(category: category)
+        }
+    }
+}
+
 public struct EventHeroCard: View {
     private let event: Event
     private let goingGuests: Int
@@ -37,7 +55,7 @@ public struct EventHeroCard: View {
 
     public var body: some View {
         ZStack(alignment: .bottomLeading) {
-            CoverArt(category: event.category)
+            EventCoverImage(category: event.category)
             Palette.photoScrim
 
             VStack(alignment: .leading, spacing: 6) {
@@ -65,7 +83,9 @@ public struct EventHeroCard: View {
 
             VStack {
                 HStack {
-                    CategoryChip(event.category)
+                    if event.category != .birthday {
+                        CategoryChip(event.category)
+                    }
                     Spacer()
                     if let onOverflow {
                         Button(action: onOverflow) {
@@ -75,6 +95,12 @@ public struct EventHeroCard: View {
                                 .minimumHitTarget()
                         }
                         .accessibilityLabel("More options")
+                    } else {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Palette.onPhoto)
+                            .frame(width: Spacing.minimumTarget, height: Spacing.minimumTarget)
+                            .accessibilityHidden(true)
                     }
                 }
                 Spacer()

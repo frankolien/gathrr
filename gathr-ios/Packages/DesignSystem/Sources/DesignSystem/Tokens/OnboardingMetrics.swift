@@ -20,4 +20,5 @@ public enum OnboardingMetrics {
     public static let copyDwell: Double = 3.6
     public static let artworkToCopyGap: CGFloat = 40
     public static let signUpArtworkInset: CGFloat = 40
+    public static let composerArtworkSize: CGFloat = 250
 }

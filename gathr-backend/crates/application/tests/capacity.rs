@@ -4,7 +4,7 @@ use gathr_application::auth::TokenSettings;
 use gathr_application::events::{self, CreateEvent};
 use gathr_application::rsvps::{self, SubmitRsvp};
 use gathr_application::{auth, AppError};
-use gathr_domain::{Category, DomainError, RsvpStatus};
+use gathr_domain::{Category, DomainError, EventVisibility, RsvpStatus};
 use gathr_infra_db::Db;
 use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
@@ -47,6 +47,9 @@ async fn event_with_capacity(db: &Db, host: Uuid, capacity: Option<i32>) -> Uuid
             capacity,
             max_plus_ones: 2,
             publish_now: true,
+            cover_template_id: None,
+            visibility: EventVisibility::default(),
+            requires_approval: false,
         },
     )
     .await

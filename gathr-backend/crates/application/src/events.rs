@@ -1,4 +1,4 @@
-use gathr_domain::{event, Category, EventSchedule, EventStatus};
+use gathr_domain::{event, Category, EventSchedule, EventStatus, EventVisibility};
 use gathr_infra_db::events::{self, EventEdit, NewEvent};
 use gathr_infra_db::{hosts, rsvps, users, Db, DbError, EventRecord, EventSummaryRecord};
 use time::{Duration, OffsetDateTime};
@@ -19,6 +19,9 @@ pub struct CreateEvent {
     pub capacity: Option<i32>,
     pub max_plus_ones: i32,
     pub publish_now: bool,
+    pub cover_template_id: Option<String>,
+    pub visibility: EventVisibility,
+    pub requires_approval: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -69,6 +72,9 @@ pub async fn create(db: &Db, input: CreateEvent) -> Result<EventSummaryRecord, A
             timezone: &input.timezone,
             capacity: input.capacity,
             max_plus_ones: input.max_plus_ones,
+            cover_template_id: input.cover_template_id.as_deref(),
+            visibility: input.visibility.as_str(),
+            requires_approval: input.requires_approval,
         },
     )
     .await?;
@@ -181,6 +187,9 @@ pub struct EditEvent {
     pub timezone: Option<String>,
     pub capacity: Option<Option<i32>>,
     pub max_plus_ones: Option<i32>,
+    pub cover_template_id: Option<Option<String>>,
+    pub visibility: Option<EventVisibility>,
+    pub requires_approval: Option<bool>,
 }
 
 pub async fn edit(
@@ -242,6 +251,12 @@ pub async fn edit(
             timezone: edit.timezone.as_deref(),
             capacity: edit.capacity,
             max_plus_ones: edit.max_plus_ones,
+            cover_template_id: edit
+                .cover_template_id
+                .as_ref()
+                .map(|value| value.as_deref()),
+            visibility: edit.visibility.map(EventVisibility::as_str),
+            requires_approval: edit.requires_approval,
         },
     )
     .await?;

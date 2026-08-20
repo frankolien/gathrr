@@ -1,4 +1,4 @@
-use gathr_domain::{Category, EventStatus};
+use gathr_domain::{Category, EventStatus, EventVisibility};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
@@ -19,6 +19,9 @@ struct EventRow {
     capacity: Option<i32>,
     max_plus_ones: i32,
     status: String,
+    cover_template_id: Option<String>,
+    visibility: String,
+    requires_approval: bool,
 }
 
 impl EventRow {
@@ -36,6 +39,9 @@ impl EventRow {
             capacity: self.capacity,
             max_plus_ones: self.max_plus_ones,
             status: parse_event_status(&self.status)?,
+            cover_template_id: self.cover_template_id,
+            visibility: EventVisibility::parse_or_public(&self.visibility),
+            requires_approval: self.requires_approval,
         })
     }
 }
@@ -53,6 +59,9 @@ struct SummaryRow {
     capacity: Option<i32>,
     max_plus_ones: i32,
     status: String,
+    cover_template_id: Option<String>,
+    visibility: String,
+    requires_approval: bool,
     going_guests: i32,
     preview_guest_names: Vec<String>,
 }
@@ -73,6 +82,9 @@ impl SummaryRow {
                 capacity: self.capacity,
                 max_plus_ones: self.max_plus_ones,
                 status: parse_event_status(&self.status)?,
+                cover_template_id: self.cover_template_id,
+                visibility: EventVisibility::parse_or_public(&self.visibility),
+                requires_approval: self.requires_approval,
             },
             going_guests: self.going_guests,
             preview_guest_names: self.preview_guest_names,
@@ -95,6 +107,9 @@ pub struct NewEvent<'a> {
     pub timezone: &'a str,
     pub capacity: Option<i32>,
     pub max_plus_ones: i32,
+    pub cover_template_id: Option<&'a str>,
+    pub visibility: &'a str,
+    pub requires_approval: bool,
 }
 
 pub async fn insert(tx: &mut Tx<'_>, new: NewEvent<'_>) -> Result<EventRecord, DbError> {
@@ -102,11 +117,14 @@ pub async fn insert(tx: &mut Tx<'_>, new: NewEvent<'_>) -> Result<EventRecord, D
         EventRow,
         r#"INSERT INTO events
              (host_id, title, category, description, location_name,
-              starts_at, ends_at, timezone, capacity, max_plus_ones)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+              starts_at, ends_at, timezone, capacity, max_plus_ones,
+              cover_template_id, visibility, requires_approval)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                   $11, ($12::text)::event_visibility, $13)
            RETURNING id, host_id, title, category, description, location_name,
                      starts_at, ends_at, timezone, capacity, max_plus_ones,
-                     status::text AS "status!""#,
+                     status::text AS "status!",
+                     cover_template_id, visibility::text AS "visibility!", requires_approval"#,
         new.host_id,
         new.title,
         new.category,
@@ -116,7 +134,10 @@ pub async fn insert(tx: &mut Tx<'_>, new: NewEvent<'_>) -> Result<EventRecord, D
         new.ends_at,
         new.timezone,
         new.capacity,
-        new.max_plus_ones
+        new.max_plus_ones,
+        new.cover_template_id,
+        new.visibility,
+        new.requires_approval
     )
     .fetch_one(&mut **tx)
     .await
@@ -140,7 +161,8 @@ pub async fn find(db: &Db, id: Uuid) -> Result<Option<EventRecord>, DbError> {
         EventRow,
         r#"SELECT id, host_id, title, category, description, location_name,
                   starts_at, ends_at, timezone, capacity, max_plus_ones,
-                  status::text AS "status!"
+                  status::text AS "status!",
+                  cover_template_id, visibility::text AS "visibility!", requires_approval
            FROM events WHERE id = $1"#,
         id
     )
@@ -156,7 +178,8 @@ pub async fn lock(tx: &mut Tx<'_>, id: Uuid) -> Result<Option<EventRecord>, DbEr
         EventRow,
         r#"SELECT id, host_id, title, category, description, location_name,
                   starts_at, ends_at, timezone, capacity, max_plus_ones,
-                  status::text AS "status!"
+                  status::text AS "status!",
+                  cover_template_id, visibility::text AS "visibility!", requires_approval
            FROM events WHERE id = $1 FOR UPDATE"#,
         id
     )
@@ -186,6 +209,7 @@ pub async fn find_summary(db: &Db, id: Uuid) -> Result<Option<EventSummaryRecord
         r#"SELECT e.id, e.host_id, e.title, e.category, e.description, e.location_name,
                   e.starts_at, e.ends_at, e.timezone, e.capacity, e.max_plus_ones,
                   e.status::text AS "status!",
+                  e.cover_template_id, e.visibility::text AS "visibility!", e.requires_approval,
                   COALESCE(g.going_guests, 0) AS "going_guests!",
                   COALESCE(g.preview_names, ARRAY[]::text[]) AS "preview_guest_names!"
            FROM events e
@@ -217,6 +241,7 @@ pub async fn feed_this_week(
         r#"SELECT e.id, e.host_id, e.title, e.category, e.description, e.location_name,
                   e.starts_at, e.ends_at, e.timezone, e.capacity, e.max_plus_ones,
                   e.status::text AS "status!",
+                  e.cover_template_id, e.visibility::text AS "visibility!", e.requires_approval,
                   COALESCE(g.going_guests, 0) AS "going_guests!",
                   COALESCE(g.preview_names, ARRAY[]::text[]) AS "preview_guest_names!"
            FROM events e
@@ -251,6 +276,7 @@ pub async fn feed_hosting(db: &Db, user_id: Uuid) -> Result<Vec<EventSummaryReco
         r#"SELECT e.id, e.host_id, e.title, e.category, e.description, e.location_name,
                   e.starts_at, e.ends_at, e.timezone, e.capacity, e.max_plus_ones,
                   e.status::text AS "status!",
+                  e.cover_template_id, e.visibility::text AS "visibility!", e.requires_approval,
                   COALESCE(g.going_guests, 0) AS "going_guests!",
                   COALESCE(g.preview_names, ARRAY[]::text[]) AS "preview_guest_names!"
            FROM events e
@@ -283,6 +309,7 @@ pub async fn feed_attending(db: &Db, user_id: Uuid) -> Result<Vec<EventSummaryRe
         r#"SELECT e.id, e.host_id, e.title, e.category, e.description, e.location_name,
                   e.starts_at, e.ends_at, e.timezone, e.capacity, e.max_plus_ones,
                   e.status::text AS "status!",
+                  e.cover_template_id, e.visibility::text AS "visibility!", e.requires_approval,
                   COALESCE(g.going_guests, 0) AS "going_guests!",
                   COALESCE(g.preview_names, ARRAY[]::text[]) AS "preview_guest_names!"
            FROM events e
@@ -317,6 +344,9 @@ pub struct EventEdit<'a> {
     pub timezone: Option<&'a str>,
     pub capacity: Option<Option<i32>>,
     pub max_plus_ones: Option<i32>,
+    pub cover_template_id: Option<Option<&'a str>>,
+    pub visibility: Option<&'a str>,
+    pub requires_approval: Option<bool>,
 }
 
 pub async fn update(
@@ -335,11 +365,15 @@ pub async fn update(
              ends_at        = CASE WHEN $9 THEN $10 ELSE ends_at END,
              timezone       = COALESCE($11, timezone),
              capacity       = CASE WHEN $12 THEN $13 ELSE capacity END,
-             max_plus_ones  = COALESCE($14, max_plus_ones)
+             max_plus_ones  = COALESCE($14, max_plus_ones),
+             cover_template_id = CASE WHEN $15 THEN $16 ELSE cover_template_id END,
+             visibility     = COALESCE(($17::text)::event_visibility, visibility),
+             requires_approval = COALESCE($18, requires_approval)
            WHERE id = $1
            RETURNING id, host_id, title, category, description, location_name,
                      starts_at, ends_at, timezone, capacity, max_plus_ones,
-                     status::text AS "status!""#,
+                     status::text AS "status!",
+                     cover_template_id, visibility::text AS "visibility!", requires_approval"#,
         id,
         edit.title,
         edit.category,
@@ -353,7 +387,11 @@ pub async fn update(
         edit.timezone,
         edit.capacity.is_some(),
         edit.capacity.flatten(),
-        edit.max_plus_ones
+        edit.max_plus_ones,
+        edit.cover_template_id.is_some(),
+        edit.cover_template_id.flatten(),
+        edit.visibility,
+        edit.requires_approval
     )
     .fetch_one(&mut **tx)
     .await

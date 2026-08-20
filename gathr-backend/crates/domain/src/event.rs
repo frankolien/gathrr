@@ -33,6 +33,36 @@ impl fmt::Display for EventStatus {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EventVisibility {
+    #[default]
+    Public,
+    Private,
+}
+
+impl EventVisibility {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Public => "public",
+            Self::Private => "private",
+        }
+    }
+
+    pub fn parse_or_public(value: &str) -> Self {
+        match value {
+            "private" => Self::Private,
+            _ => Self::Public,
+        }
+    }
+}
+
+impl fmt::Display for EventVisibility {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EventSchedule {
     pub starts_at: OffsetDateTime,

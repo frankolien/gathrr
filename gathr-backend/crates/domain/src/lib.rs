@@ -12,7 +12,7 @@ pub mod rsvp;
 pub use capacity::{Admission, CapacityContext, DEFAULT_MAX_PLUS_ONES};
 pub use category::Category;
 pub use error::DomainError;
-pub use event::{EventSchedule, EventStatus};
+pub use event::{EventSchedule, EventStatus, EventVisibility};
 pub use ids::{EventId, InviteId, RsvpId, UserId};
 pub use invite::InviteTerms;
 pub use invite_code::{InviteCode, CODE_LENGTH};

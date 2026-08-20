@@ -1,4 +1,4 @@
-use gathr_domain::{Category, DomainError, EventStatus, RsvpStatus};
+use gathr_domain::{Category, DomainError, EventStatus, EventVisibility, RsvpStatus};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
@@ -27,6 +27,9 @@ pub struct EventRecord {
     pub capacity: Option<i32>,
     pub max_plus_ones: i32,
     pub status: EventStatus,
+    pub cover_template_id: Option<String>,
+    pub visibility: EventVisibility,
+    pub requires_approval: bool,
 }
 
 #[derive(Debug, Clone)]
